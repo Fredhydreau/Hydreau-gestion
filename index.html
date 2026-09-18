@@ -6,6 +6,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <title>Chantiers Hydreau</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -167,6 +168,12 @@
   }
   .btn-primary:hover{filter:brightness(1.06);}
   .btn-primary svg{width:14px;height:14px;}
+  .btn-secondary{
+    background:var(--surface); color:var(--ink-soft); border:1px solid var(--border); border-radius:9px;
+    padding:9px 15px; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:7px;
+  }
+  .btn-secondary:hover{border-color:var(--brand-teal); color:var(--brand-teal-ink);}
+  .btn-secondary svg{width:14px;height:14px;}
 
   main{padding:22px 26px 60px;}
   .view{display:none;}
@@ -424,12 +431,14 @@
   .job .site{display:block; color:var(--ink-muted); font-weight:500; font-size:10.5px; margin-top:1px;}
   .plan-empty{color:var(--ink-muted); font-size:11.5px; display:flex; align-items:center; height:100%;}
 
+  .backlog-stack{display:flex; flex-direction:column; gap:16px;}
   .backlog{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; box-shadow:var(--shadow-soft);}
   .backlog h2{font-size:13.5px; margin:0 0 3px;}
   .backlog .hint{font-size:11px; color:var(--ink-muted); margin-bottom:12px;}
   .backlog-item{border:1px solid var(--border); border-radius:10px; padding:9px 10px; margin-bottom:8px; background:var(--surface-2);}
   .backlog-item b{font-size:12.5px; display:block;}
   .backlog-item span{font-size:11.5px; color:var(--ink-muted); display:block;}
+  .backlog-item .tag.info{color:var(--info-ink); background:var(--info-bg);}
 
   /* ---------- logistique (fusionnée dans le planning) ---------- */
   .logi-block{margin-top:18px; padding-top:16px; border-top:1px dashed var(--border);}
@@ -587,6 +596,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="searchInput" type="text" placeholder="Rechercher un client, une commune…" />
       </div>
+      <button class="btn-secondary" id="exportExcelBtn" title="Exporter toutes les données en Excel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+        Exporter Excel
+      </button>
       <button class="btn-primary" id="newChantierBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
         Nouveau chantier
@@ -681,7 +694,7 @@
             <thead>
               <tr>
                 <th>Client</th><th>Commune</th><th>Responsable</th><th>Mandat</th><th>Date de déclaration</th><th>Décl. validée</th><th>Type</th><th>Sondes / forage</th><th>Statut</th><th>Raccordement</th>
-                <th>Reste à faire</th><th>DICT</th><th>PPSPS</th><th>À planifier</th><th>Montant</th><th>Acompte</th><th>Solde</th><th>Docs</th>
+                <th>Reste à faire</th><th>DICT</th><th>PPSPS</th><th>À planifier</th><th>Montant</th><th>Acompte</th><th>Solde</th><th>Docs</th><th>Suppr.</th>
               </tr>
             </thead>
             <tbody>
@@ -693,6 +706,8 @@
                 <td class="num" id="chantiersFooterMontant">106 702&nbsp;€</td>
                 <td class="num" id="chantiersFooterAcompte">52 083&nbsp;€</td>
                 <td class="num" id="chantiersFooterSolde">54 619&nbsp;€</td>
+                <td></td>
+                <td></td>
               </tr>
             </tfoot>
           </table>
@@ -721,10 +736,17 @@
             <div class="plan-grid-inner" id="planGrid"><!-- injected by JS --></div>
           </div>
 
-          <div class="backlog">
-            <h2>À planifier — raccordements</h2>
-            <div class="hint">Forage terminé chez le client — raccordement en attente d'un créneau équipe</div>
-            <div id="backlogList"><!-- injected by JS --></div>
+          <div class="backlog-stack">
+            <div class="backlog">
+              <h2>À planifier — forages</h2>
+              <div class="hint">Chantiers créés dont le forage n'a pas encore démarré</div>
+              <div id="backlogForageList"><!-- injected by JS --></div>
+            </div>
+            <div class="backlog">
+              <h2>À planifier — raccordements</h2>
+              <div class="hint">Forage terminé chez le client — raccordement en attente d'un créneau équipe</div>
+              <div id="backlogList"><!-- injected by JS --></div>
+            </div>
           </div>
         </div>
 
@@ -933,6 +955,25 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="loginOverlay" style="z-index:500;">
+  <div class="modal-panel" style="max-width:340px;">
+    <div class="modal-head">
+      <div>
+        <h3>Connexion</h3>
+        <div class="sub">Entre le mot de passe de l'équipe pour accéder au planning</div>
+      </div>
+    </div>
+    <div style="padding:18px 20px 20px;">
+      <div class="form-row">
+        <label for="loginPassword">Mot de passe</label>
+        <input type="password" id="loginPassword" placeholder="••••••••">
+      </div>
+      <div class="hint" id="loginError" style="color:var(--crit-ink); display:none; margin-top:4px;">Mot de passe incorrect.</div>
+      <button type="button" class="btn-primary" id="loginBtn" style="width:100%; justify-content:center; margin-top:14px;">Se connecter</button>
+    </div>
+  </div>
+</div>
+
 <div id="printFicheArea"></div>
 
 <script>
@@ -959,27 +1000,69 @@
     messagingSenderId: "432954249621",
     appId: "1:432954249621:web:4f8cd183f03bbbf86de69c"
   };
-  var firebaseDbPromise = null;
+  /* mot de passe unique de l'equipe : le compte ci-dessous est cree une fois
+     dans Firebase (Authentication > Users), avec le mot de passe choisi par
+     Hydreau. Cet email est un simple identifiant technique, pas une vraie
+     adresse a contacter. */
+  var TEAM_LOGIN_EMAIL = "contact@hydreau-forage.fr";
+  var firebaseAppReady = false;
+  function ensureFirebaseApp(){
+    if(!firebaseAppReady){
+      firebase.initializeApp(FIREBASE_CONFIG);
+      firebaseAppReady = true;
+    }
+  }
+  var resolveDbReady;
+  var firebaseDbPromise = new Promise(function(resolve){ resolveDbReady = resolve; });
   function getDb(){
     if(!window.firebase){ return Promise.resolve(null); }
-    if(!firebaseDbPromise){
-      firebaseDbPromise = new Promise(function(resolve){
-        try{
-          firebase.initializeApp(FIREBASE_CONFIG);
-          firebase.auth().signInAnonymously().then(function(){
-            resolve(firebase.firestore());
-          }).catch(function(err){
-            console.error("Connexion Firebase (auth) impossible", err);
-            resolve(null);
-          });
-        } catch(e){
-          console.error("Initialisation Firebase impossible", e);
-          resolve(null);
-        }
-      });
-    }
     return firebaseDbPromise;
   }
+  function setLoginOverlay(open){
+    var el = document.getElementById("loginOverlay");
+    if(el) el.classList.toggle("open", open);
+  }
+  function attemptLogin(){
+    var input = document.getElementById("loginPassword");
+    var errEl = document.getElementById("loginError");
+    var pwd = input ? input.value : "";
+    if(errEl) errEl.style.display = "none";
+    if(!pwd) return;
+    try{
+      ensureFirebaseApp();
+      firebase.auth().signInWithEmailAndPassword(TEAM_LOGIN_EMAIL, pwd).catch(function(err){
+        console.error("Connexion refusee", err);
+        if(errEl) errEl.style.display = "block";
+      });
+    } catch(e){
+      console.error("Initialisation Firebase impossible", e);
+      if(errEl) errEl.style.display = "block";
+    }
+  }
+  function initAuthGate(){
+    if(!window.firebase){ setLoginOverlay(false); resolveDbReady(null); return; }
+    var loginBtn = document.getElementById("loginBtn");
+    var loginInput = document.getElementById("loginPassword");
+    if(loginBtn) loginBtn.addEventListener("click", attemptLogin);
+    if(loginInput) loginInput.addEventListener("keydown", function(e){ if(e.key === "Enter") attemptLogin(); });
+    try{
+      ensureFirebaseApp();
+      var unsub = firebase.auth().onAuthStateChanged(function(user){
+        if(user){
+          setLoginOverlay(false);
+          if(typeof unsub === "function") unsub();
+          resolveDbReady(firebase.firestore());
+        } else {
+          setLoginOverlay(true);
+        }
+      });
+    } catch(e){
+      console.error("Initialisation Firebase impossible", e);
+      setLoginOverlay(false);
+      resolveDbReady(null);
+    }
+  }
+  initAuthGate();
   function getAssets(){
     if(!window.claude || !window.claude.use){ return Promise.resolve(null); }
     return window.claude.use("assets").then(function(a){ return a; }, function(){ return null; });
@@ -1376,12 +1459,14 @@
         + '<td class="num' + (c.acompte ? "" : " zero") + '">' + (c.acompte ? eur(c.acompte) : "—") + "</td>"
         + '<td class="num' + (solde > 0 ? " due" : " zero") + '">' + (c.montant ? eur(solde) : "—") + "</td>"
         + '<td>' + docsButton(c) + "</td>"
+        + '<td>' + delBtnHtml("chantiers", c.id) + "</td>"
         + "</tr>";
     }).join("");
 
     document.getElementById("tableEmpty").hidden = rows.length !== 0;
     updateChantiersFooter();
     renderBacklog();
+    renderBacklogForages();
     renderDashboard();
   }
   function updateChantiersFooter(){
@@ -1410,6 +1495,17 @@
     if(rows.length === 0){ el.innerHTML = '<div class="hint">Aucun raccordement en attente.</div>'; return; }
     el.innerHTML = rows.map(function(c){
       return '<div class="backlog-item"><b>' + c.client + '</b><span>' + c.commune + ' (' + c.dept + ')</span><span class="tag">Forage terminé</span></div>';
+    }).join("");
+  }
+  function renderBacklogForages(){
+    var el = document.getElementById("backlogForageList");
+    if(!el) return;
+    var rows = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
+      return c.forageStatut === "attente";
+    });
+    if(rows.length === 0){ el.innerHTML = '<div class="hint">Aucun forage en attente.</div>'; return; }
+    el.innerHTML = rows.map(function(c){
+      return '<div class="backlog-item"><b>' + c.client + '</b><span>' + c.commune + ' (' + c.dept + ')</span><span class="tag info">' + (c.type || "") + "</span></div>";
     }).join("");
   }
   document.querySelectorAll('.chip[data-filter]').forEach(function(chip){
@@ -2164,6 +2260,11 @@
     var del = e.target.closest ? e.target.closest("[data-del-col]") : null;
     if(del){
       var dcol = del.getAttribute("data-del-col"), did = del.getAttribute("data-id");
+      if(dcol === "chantiers"){
+        var cData = state.chantiers[did];
+        var cLabel = cData ? (cData.client + " (" + cData.commune + ")") : "ce chantier";
+        if(!window.confirm("Supprimer définitivement le chantier " + cLabel + " ?\nCette action est irréversible.")) return;
+      }
       deleteDoc(dcol, did, RENDER_MAP[dcol]);
       return;
     }
@@ -2229,6 +2330,64 @@
       });
     });
   }
+  /* ---------- export Excel (sauvegarde complete des donnees) ---------- */
+  var DAY_NAMES = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+  function exportAllToExcel(){
+    if(!window.XLSX){ showToast("Export indisponible — bibliothèque non chargée"); return; }
+    var wb = XLSX.utils.book_new();
+
+    var chantiersRows = sortedArray(state.chantiers, byOrder).map(function(c){
+      var solde = (c.montant || 0) - (c.acompte || 0);
+      return {
+        "Client": c.client || "", "Commune": c.commune || "", "Departement": c.dept || "",
+        "Responsable": c.responsable || "", "Mandat signe": c.mandat ? "Oui" : "Non",
+        "Date de declaration": c.declaration || "", "Declaration validee": c.declarationValidee ? "Oui" : "Non",
+        "Type": c.type || "", "Statut forage": c.forageStatut || "",
+        "Statut raccordement": c.raccNA ? "Sans objet" : (c.raccStatut || "attente"),
+        "Reste a faire": c.reste || "", "DICT": c.dict ? "Oui" : "Non", "PPSPS": c.ppsps ? "Oui" : "Non",
+        "A planifier": c.planifier ? "Oui" : "Non",
+        "Montant EUR": c.montant || 0, "Acompte EUR": c.acompte || 0, "Solde EUR": solde
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(chantiersRows), "Chantiers");
+
+    var planningRows = Object.keys(state.planning).map(function(id){
+      var p = state.planning[id];
+      var label = p.chantierId;
+      if(label === "_repli") label = "Repli / entretien";
+      else if(label === "_conge") label = "Congé / indisponible";
+      else if(label && state.chantiers[label]) label = state.chantiers[label].client;
+      return {
+        "Semaine": p.week || "", "Equipe / ligne": p.team || "",
+        "Jour": DAY_NAMES[p.day] !== undefined ? DAY_NAMES[p.day] : p.day,
+        "Chantier / statut": label || "", "Materiel": p.mat || "", "Statut logistique": p.statut || ""
+      };
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(planningRows), "Planning");
+
+    var stockRows = [];
+    sortedArray(state.stockSondes, function(a, b){ return a.depth - b.depth; }).forEach(function(s){
+      stockRows.push({"Categorie": "Sonde", "Reference": s.depth + " m", "Besoin": s.besoin || 0, "Stock Guingamp": s.stockGuingamp || 0, "Stock Rennes": s.stockRennes || 0, "Stock total": (s.stockGuingamp || 0) + (s.stockRennes || 0)});
+    });
+    sortedArray(state.stockCollecteurs, byOrder).forEach(function(s){
+      stockRows.push({"Categorie": "Collecteur", "Reference": s.label, "Besoin": s.besoin || 0, "Stock Guingamp": s.stockGuingamp || 0, "Stock Rennes": s.stockRennes || 0, "Stock total": (s.stockGuingamp || 0) + (s.stockRennes || 0)});
+    });
+    sortedArray(state.stockDivers, byOrder).forEach(function(s){
+      stockRows.push({"Categorie": "Divers", "Reference": s.label, "Besoin": s.besoin || 0, "Stock Guingamp": s.stockGuingamp || 0, "Stock Rennes": s.stockRennes || 0, "Stock total": (s.stockGuingamp || 0) + (s.stockRennes || 0)});
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stockRows), "Stock");
+
+    var equipRows = sortedArray(state.stockEquip, byOrder).map(function(e){
+      return {"Nom": e.name || "", "Reference": e.ref || "", "Depot": depotMeta[e.depot] ? depotMeta[e.depot].label : (e.depot || ""), "Etat": e.state || ""};
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(equipRows), "Materiel");
+
+    var dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, "Hydreau_export_" + dateStr + ".xlsx");
+  }
+  var exportExcelBtnEl = document.getElementById("exportExcelBtn");
+  if(exportExcelBtnEl) exportExcelBtnEl.addEventListener("click", exportAllToExcel);
+
   function initAssets(){
     getAssets().then(function(a){ assetsRef = a; });
   }
