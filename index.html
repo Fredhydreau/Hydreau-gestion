@@ -1561,12 +1561,50 @@
     var c = state.chantiers[currentDocsId];
     var docs = (c && c.docs) || [];
     docsListEl.innerHTML = docs.length ? docs.map(function(f){
-      var nameHtml = f.url
-        ? '<a class="name" href="' + f.url + '" target="_blank" rel="noopener">' + f.name + "</a>"
-        : '<div class="name">' + f.name + "</div>";
-      return '<div class="doc-row"><div class="ic">' + fileIcon(f.name) + '</div><div class="meta">' + nameHtml + '<div class="date">' + f.date + (f.url ? "" : " · nom seul, fichier non stocké") + '</div></div></div>';
+      var nameHtml, sub;
+      if(f.fileId){
+        nameHtml = '<a class="name" href="#" data-open-doc="' + f.fileId + '">' + f.name + "</a>";
+        sub = "";
+      } else if(f.url){
+        nameHtml = '<a class="name" href="' + f.url + '" target="_blank" rel="noopener">' + f.name + "</a>";
+        sub = "";
+      } else {
+        nameHtml = '<div class="name">' + f.name + "</div>";
+        sub = f.tooLarge ? " · fichier trop volumineux (max 650 Ko), non stocké" : " · nom seul, fichier non stocké";
+      }
+      return '<div class="doc-row"><div class="ic">' + fileIcon(f.name) + '</div><div class="meta">' + nameHtml + '<div class="date">' + f.date + sub + '</div></div></div>';
     }).join("") : '<div class="doc-empty">Aucun fichier pour ce chantier pour l\'instant.</div>';
   }
+  function dataURLtoBlob(dataUrl){
+    var parts = dataUrl.split(",");
+    var mimeMatch = parts[0].match(/data:(.*?);base64/);
+    var mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    var binary = atob(parts[1]);
+    var arr = new Uint8Array(binary.length);
+    for(var i = 0; i < binary.length; i++){ arr[i] = binary.charCodeAt(i); }
+    return new Blob([arr], {type: mime});
+  }
+  function openStoredDoc(fileId){
+    if(!dbRef){ showToast("Connexion à l'espace partagé indisponible"); return; }
+    showToast("Ouverture du fichier…");
+    dbRef.doc("docFiles/" + fileId).get().then(function(snap){
+      if(!snap.exists){ showToast("Fichier introuvable"); return; }
+      var data = snap.data();
+      var blob = dataURLtoBlob(data.dataUrl);
+      var url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+    }, function(err){
+      console.error("lecture fichier impossible", err);
+      showToast("Impossible d'ouvrir ce fichier");
+    });
+  }
+  docsListEl.addEventListener("click", function(e){
+    var link = e.target.closest ? e.target.closest("[data-open-doc]") : null;
+    if(!link) return;
+    e.preventDefault();
+    openStoredDoc(link.getAttribute("data-open-doc"));
+  });
   function openDocs(id){
     currentDocsId = id;
     var c = state.chantiers[id];
@@ -1598,15 +1636,31 @@
       patchDoc("chantiers", targetId, {docs:newDocs}, function(){ if(currentDocsId === targetId) renderDocsList(); renderChantiers(); });
     }
 
+    var MAX_DOC_BYTES = 650 * 1024;
+    function readAsDataURL(file){
+      return new Promise(function(resolve, reject){
+        var reader = new FileReader();
+        reader.onload = function(){ resolve(reader.result); };
+        reader.onerror = function(){ reject(reader.error); };
+        reader.readAsDataURL(file);
+      });
+    }
     function storeOne(f){
-      if(!assetsRef){
+      if(f.size > MAX_DOC_BYTES){
+        addDocEntry({name:f.name, date:today, tooLarge:true});
+        return Promise.resolve();
+      }
+      if(!dbRef){
         addDocEntry({name:f.name, date:today});
         return Promise.resolve();
       }
-      return assetsRef.upload(f).then(function(res){
-        addDocEntry({name:f.name, date:today, assetId:res.id, url:res.url});
+      var fileId = "doc" + Date.now() + Math.random().toString(36).slice(2, 8);
+      return readAsDataURL(f).then(function(dataUrl){
+        return dbRef.doc("docFiles/" + fileId).set({name:f.name, dataUrl:dataUrl});
+      }).then(function(){
+        addDocEntry({name:f.name, date:today, fileId:fileId});
       }, function(err){
-        console.error("upload failed", f.name, err);
+        console.error("stockage fichier impossible", f.name, err);
         addDocEntry({name:f.name, date:today});
       });
     }
