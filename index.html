@@ -600,6 +600,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 21h14"/></svg>
         Exporter Excel
       </button>
+      <button class="btn-secondary" id="logoutBtn" title="Se déconnecter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Déconnexion
+      </button>
       <button class="btn-primary" id="newChantierBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
         Nouveau chantier
@@ -1045,6 +1049,13 @@
     var loginInput = document.getElementById("loginPassword");
     if(loginBtn) loginBtn.addEventListener("click", attemptLogin);
     if(loginInput) loginInput.addEventListener("keydown", function(e){ if(e.key === "Enter") attemptLogin(); });
+    var logoutBtn = document.getElementById("logoutBtn");
+    if(logoutBtn) logoutBtn.addEventListener("click", function(){
+      if(!window.confirm("Se déconnecter de l'outil ?")) return;
+      try{
+        firebase.auth().signOut().then(function(){ location.reload(); }).catch(function(){ location.reload(); });
+      } catch(e){ location.reload(); }
+    });
     try{
       ensureFirebaseApp();
       var unsub = firebase.auth().onAuthStateChanged(function(user){
@@ -1806,19 +1817,41 @@
       return null;
     }
   }
+  function downloadBlob(filename, blob){
+    try{
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){
+        if(a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 200);
+      return true;
+    } catch(err){
+      console.error("download failed", err);
+      return false;
+    }
+  }
   function printFiche(id){
     var c = state.chantiers[id];
     if(!c) return;
     var blob = buildFichePdfBlob(c);
-    if(blob && downloadsRef){
+    if(blob){
       var filename = "Fiche chantier - " + c.client + ".pdf";
-      downloadsRef.save({filename:filename, data:blob}).then(function(){
+      if(downloadBlob(filename, blob)){
         showToast("Fiche PDF téléchargée");
-      }, function(err){
-        if(err && err.code !== "declined") console.error("download failed", err);
-        if(err && err.code !== "declined") printFicheHtmlFallback(c);
-      });
-      return;
+        return;
+      }
+      if(downloadsRef){
+        downloadsRef.save({filename:filename, data:blob}).then(function(){
+          showToast("Fiche PDF téléchargée");
+        }, function(err){
+          if(err && err.code !== "declined") printFicheHtmlFallback(c);
+        });
+        return;
+      }
     }
     printFicheHtmlFallback(c);
   }
