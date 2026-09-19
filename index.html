@@ -590,7 +590,7 @@
       </button>
 
       <div class="navlabel">Exercice</div>
-      <button class="navitem" disabled style="opacity:.55; cursor:default;">
+      <button class="navitem" data-view="stats">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5m0 14h16M8 15l3-4 3 3 5-7"/></svg>
         <span class="lbl">Statistiques 2026/27</span>
       </button>
@@ -849,6 +849,32 @@
             <input type="text" id="equipNewNameInput" placeholder="Nom de la référence">
             <input type="text" id="equipNewRefInput" placeholder="Référence (optionnel)" style="max-width:160px;">
             <button type="button" class="stock-add-btn" id="equipAddBtn">+ Ajouter</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== STATISTIQUES ÉQUIPES ===================== -->
+      <section class="view" id="view-stats">
+        <div class="hint" style="margin:0 0 14px;">Chiffre d'affaires et volumes cumulés sur l'exercice, par équipe — un chantier compte pour l'équipe à laquelle il est affecté dans le Planning.</div>
+
+        <h2 style="margin:0 0 10px; font-size:14.5px;">Équipes de forage</h2>
+        <div class="kpi-grid" id="statsForageGrid"><!-- injected by JS --></div>
+
+        <h2 style="margin:18px 0 10px; font-size:14.5px;">Équipes de raccordement</h2>
+        <div class="kpi-grid" id="statsRaccGrid" style="grid-template-columns:repeat(2,1fr); max-width:600px;"><!-- injected by JS --></div>
+
+        <div class="card" style="margin-top:18px; max-width:600px;">
+          <h2>Autres interventions — Pompage &amp; Dépannage</h2>
+          <div class="hint">Chiffre d'affaires cumulé, hors chantiers de forage et de raccordement</div>
+          <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
+            <div class="card kpi" style="box-shadow:none; border:1px solid var(--border);">
+              <div class="label">Chiffre d'affaires</div>
+              <div class="value" id="statsAutresCa">0&nbsp;€</div>
+            </div>
+            <div class="card kpi" style="box-shadow:none; border:1px solid var(--border);">
+              <div class="label">Interventions</div>
+              <div class="value" id="statsAutresN">0</div>
+            </div>
           </div>
         </div>
       </section>
@@ -1134,7 +1160,8 @@
     dashboard:  ["Tableau de bord", "Semaine 38 · 14–18 septembre 2026"],
     chantiers:  ["Chantiers", "Chantiers suivis sur l'exercice 2026/27 — un chantier par client"],
     planning:   ["Planning", "4 équipes forage · 2 équipes raccordement · logistique dépôts intégrée"],
-    stock:      ["Stock & matériel", "Sondes, collecteurs et matériel de pompage"]
+    stock:      ["Stock & matériel", "Sondes, collecteurs et matériel de pompage"],
+    stats:      ["Statistiques équipes", "Chiffre d'affaires et mètres forés par équipe — exercice 2026/27"]
   };
   navItems.forEach(function(btn){
     btn.addEventListener("click", function(){
@@ -2420,6 +2447,78 @@
     setText("navChantiersCount", String(count));
     var stockCount = Object.keys(state.stockSondes).length + Object.keys(state.stockCollecteurs).length + Object.keys(state.stockDivers).length + Object.keys(state.stockEquip).length;
     setText("navStockCount", String(stockCount));
+
+    renderTeamStats();
+  }
+
+  /* ---------- statistiques par équipe (CA / mètres / raccordements) ---------- */
+  var TEAM_TYPES_FORAGE = ["Géothermie", "Forage eau"];
+  var TEAM_TYPES_AUTRES = ["Pompage", "Dépannage"];
+  function planningTeamOf(id){
+    var m = id.match(/-(a|b|c|d|r1|r2)-\d+$/);
+    return m ? m[1] : null;
+  }
+  function teamChantierIds(team){
+    var ids = {};
+    Object.keys(state.planning).forEach(function(pid){
+      if(planningTeamOf(pid) !== team) return;
+      var cell = state.planning[pid];
+      var cid = cell && cell.chantierId;
+      if(cid && cid !== "_repli" && cid !== "_conge" && state.chantiers[cid]) ids[cid] = true;
+    });
+    return Object.keys(ids);
+  }
+  function metresForChantier(c){
+    if(c.type === "Géothermie" && c.sondes && c.sondes.length){ return c.sondes.reduce(function(s, v){ return s + v; }, 0); }
+    if(c.type === "Forage eau" && c.depth){ return c.depth; }
+    return 0;
+  }
+  function teamDotHtml(color){
+    return '<span style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; background:' + color + '"></span>';
+  }
+  function renderTeamStats(){
+    var forageGrid = document.getElementById("statsForageGrid");
+    var raccGrid = document.getElementById("statsRaccGrid");
+    if(!forageGrid && !raccGrid) return;
+
+    if(forageGrid){
+      forageGrid.innerHTML = ["a", "b", "c", "d"].map(function(team){
+        var tm = teamMeta[team];
+        var ca = 0, metres = 0, n = 0;
+        teamChantierIds(team).forEach(function(cid){
+          var c = state.chantiers[cid];
+          if(TEAM_TYPES_FORAGE.indexOf(c.type) < 0) return;
+          ca += (c.montant || 0);
+          metres += metresForChantier(c);
+          n++;
+        });
+        return '<div class="card kpi"><div class="label">' + teamDotHtml(tm.color) + tm.label + '</div>'
+          + '<div class="value">' + eur(ca) + '</div>'
+          + '<div class="delta">' + metres.toLocaleString("fr-FR") + ' m forés &middot; ' + n + ' chantier' + (n > 1 ? "s" : "") + '</div></div>';
+      }).join("");
+    }
+    if(raccGrid){
+      raccGrid.innerHTML = ["r1", "r2"].map(function(team){
+        var tm = teamMeta[team];
+        var ca = 0, n = 0;
+        teamChantierIds(team).forEach(function(cid){
+          var c = state.chantiers[cid];
+          if(TEAM_TYPES_FORAGE.indexOf(c.type) < 0) return;
+          ca += (c.montant || 0);
+          n++;
+        });
+        return '<div class="card kpi"><div class="label">' + teamDotHtml(tm.color) + tm.label + '</div>'
+          + '<div class="value">' + eur(ca) + '</div>'
+          + '<div class="delta">' + n + ' raccordement' + (n > 1 ? "s" : "") + '</div></div>';
+      }).join("");
+    }
+    var autresCa = 0, autresN = 0;
+    Object.keys(state.chantiers).forEach(function(cid){
+      var c = state.chantiers[cid];
+      if(TEAM_TYPES_AUTRES.indexOf(c.type) >= 0){ autresCa += (c.montant || 0); autresN++; }
+    });
+    setText("statsAutresCa", eur(autresCa));
+    setText("statsAutresN", String(autresN) + " intervention" + (autresN > 1 ? "s" : ""));
   }
 
   /* ================= generic field dispatch ================= */
