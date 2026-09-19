@@ -501,6 +501,21 @@
   #ficheReste{width:100%; border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:8px; font:inherit; font-size:12.5px; resize:vertical;}
   .fiche-actions{display:flex; gap:8px;}
   .fiche-actions .btn-primary{flex:1;}
+  .fiche-steps{display:flex; gap:6px;}
+  .fiche-step{flex:1; text-align:center; padding:8px 4px; border-radius:8px; background:var(--surface-2); border:1px solid var(--border);}
+  .fiche-step .lbl{font-size:9.5px; text-transform:uppercase; letter-spacing:.3px; color:var(--ink-muted); display:block; margin-bottom:3px;}
+  .fiche-step .val{font-size:11px; font-weight:700;}
+  .fiche-step.done{background:var(--good-bg);} .fiche-step.done .val{color:var(--good-ink);}
+  .fiche-step.cours{background:var(--warn-bg);} .fiche-step.cours .val{color:var(--warn-ink);}
+  .fiche-step.probleme{background:var(--crit-bg);} .fiche-step.probleme .val{color:var(--crit-ink);}
+  .fiche-step.na{opacity:.5;}
+  .journal-add textarea{width:100%;}
+  .journal-list{margin-top:10px; max-height:220px; overflow-y:auto;}
+  .journal-item{border-bottom:1px solid var(--border); padding:8px 0; font-size:12.5px;}
+  .journal-item:last-child{border-bottom:none;}
+  .journal-item .jdate{font-size:10px; color:var(--ink-muted); font-weight:700; text-transform:uppercase; letter-spacing:.3px; display:block; margin-bottom:2px;}
+  .journal-item .jtext{white-space:pre-wrap;}
+  .journal-empty{font-size:12px; color:var(--ink-muted); padding:6px 0;}
 
   /* ---------- fiche imprimable (transmise au salarié) ---------- */
   #printFicheArea{display:none;}
@@ -521,6 +536,10 @@
     #printFicheArea .print-alert{font-size:12.5px; font-weight:700; padding:6px 10px; border:1.5px solid #000; border-radius:6px; display:inline-block; margin-bottom:14px;}
     #printFicheArea .print-sign{display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:44px; font-size:12px;}
     #printFicheArea .print-sign div{border-top:1px solid #000; padding-top:6px;}
+    #printFicheArea .print-journal-item{border-top:1px solid #ccc; padding:10px 0; font-size:12.5px; break-inside:avoid;}
+    #printFicheArea .print-journal-item:first-child{border-top:none;}
+    #printFicheArea .print-journal-item b{font-size:10.5px; text-transform:uppercase; letter-spacing:.3px; color:#444; display:block; margin-bottom:3px;}
+    #printFicheArea .print-journal-item p{margin:0; white-space:pre-wrap;}
   }
 
   @media (max-width: 980px){
@@ -934,6 +953,10 @@
         <div class="fiche-grid" id="ficheInfoGrid"><!-- injected by JS --></div>
       </div>
       <div class="fiche-section">
+        <h4>Suivi du chantier</h4>
+        <div class="fiche-steps" id="ficheSteps"><!-- injected by JS --></div>
+      </div>
+      <div class="fiche-section">
         <h4>Suivi commercial</h4>
         <div class="form-row-2">
           <div class="form-row"><label for="ficheVendeur">Vendu par</label><input type="text" class="field-input" id="ficheVendeur" data-col="chantiers" data-field="vendeur"></div>
@@ -944,6 +967,20 @@
       <div class="fiche-section">
         <h4>Reste à faire</h4>
         <textarea id="ficheReste" class="field-input" rows="2" data-col="chantiers" data-field="reste"></textarea>
+      </div>
+      <div class="fiche-section">
+        <h4>Journal de suivi</h4>
+        <div class="journal-add">
+          <textarea id="journalInput" class="field-input" rows="2" placeholder="Ajouter une note ou un compte rendu de réunion (ex : forage démarré, réunion de chantier du 18/09 avec le client…)"></textarea>
+          <div style="display:flex; gap:8px; margin-top:6px;">
+            <button type="button" class="btn-secondary" id="journalAddBtn">Ajouter la note</button>
+            <button type="button" class="btn-secondary" id="journalPrintBtn" title="Imprimer tout le journal de ce chantier">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9V4h12v5M6 18h12v4H6zM4 9h16v7H4z"/></svg>
+              Imprimer le journal
+            </button>
+          </div>
+        </div>
+        <div class="journal-list" id="journalList"><!-- injected by JS --></div>
       </div>
       <div class="fiche-actions">
         <button type="button" class="btn-primary" id="fichePrintBtn" style="justify-content:center;">
@@ -1674,6 +1711,43 @@
   var ficheOverlay = document.getElementById("ficheOverlay");
   var currentFicheId = null;
   function ficheStatusLabel(map, v){ return (map[v] && map[v].label) || "—"; }
+  function escapeHtml(s){
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function ficheStepClass(status){
+    if(status === "ok") return "done";
+    if(status === "cours") return "cours";
+    if(status === "probleme") return "probleme";
+    return "";
+  }
+  function renderFicheSteps(c){
+    var el = document.getElementById("ficheSteps");
+    if(!el) return;
+    var solde = (c.montant || 0) - (c.acompte || 0);
+    var factCls, factLabel;
+    if(c.montant && solde <= 0){ factCls = "done"; factLabel = "Soldé"; }
+    else if(c.acompte > 0){ factCls = "cours"; factLabel = "Acompte versé"; }
+    else { factCls = ""; factLabel = "À faire"; }
+    var steps = [
+      {label:"Mandat", cls: c.mandat ? "done" : "", val: c.mandat ? "Signé" : "À signer"},
+      {label:"Forage", cls: ficheStepClass(c.forageStatut), val: ficheStatusLabel(statutMeta, c.forageStatut)},
+      c.raccNA
+        ? {label:"Raccordement", cls:"na", val:"Sans objet"}
+        : {label:"Raccordement", cls: ficheStepClass(c.raccStatut || "attente"), val: ficheStatusLabel(statutMeta, c.raccStatut || "attente")},
+      {label:"Facturation", cls: factCls, val: factLabel}
+    ];
+    el.innerHTML = steps.map(function(s){
+      return '<div class="fiche-step ' + s.cls + '"><span class="lbl">' + s.label + '</span><span class="val">' + s.val + '</span></div>';
+    }).join("");
+  }
+  function renderJournal(c){
+    var el = document.getElementById("journalList");
+    if(!el) return;
+    var entries = ((c && c.journal) || []).slice().reverse();
+    el.innerHTML = entries.length ? entries.map(function(j){
+      return '<div class="journal-item"><span class="jdate">' + escapeHtml(j.date) + '</span><div class="jtext">' + escapeHtml(j.text) + '</div></div>';
+    }).join("") : '<div class="journal-empty">Aucune note pour l\'instant.</div>';
+  }
   function renderFicheInfo(c){
     var grid = document.getElementById("ficheInfoGrid");
     var solde = (c.montant || 0) - (c.acompte || 0);
@@ -1707,6 +1781,9 @@
     document.getElementById("ficheSuivi").value = c.suivi || "";
     document.getElementById("ficheResponsable").value = c.responsable || "";
     renderFicheInfo(c);
+    renderFicheSteps(c);
+    document.getElementById("journalInput").value = "";
+    renderJournal(c);
     ficheOverlay.classList.add("open");
   }
   function closeFiche(){ ficheOverlay.classList.remove("open"); currentFicheId = null; }
@@ -1717,6 +1794,45 @@
     var id = currentFicheId;
     closeFiche();
     openDocs(id);
+  });
+  document.getElementById("journalAddBtn").addEventListener("click", function(){
+    if(!currentFicheId) return;
+    var id = currentFicheId;
+    var c = state.chantiers[id];
+    if(!c) return;
+    var input = document.getElementById("journalInput");
+    var text = (input.value || "").trim();
+    if(!text) return;
+    var now = new Date();
+    var entry = {
+      date: now.toLocaleDateString("fr-FR") + " " + now.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}),
+      text: text
+    };
+    var newJournal = (c.journal || []).slice();
+    newJournal.push(entry);
+    input.value = "";
+    patchDoc("chantiers", id, {journal:newJournal}, function(){
+      if(currentFicheId === id) renderJournal(state.chantiers[id]);
+      renderChantiers();
+    });
+  });
+  function printJournalHtmlFallback(c){
+    var entries = (c.journal || []);
+    var rows = entries.length ? entries.map(function(j){
+      return '<div class="print-journal-item"><b>' + escapeHtml(j.date) + '</b><p>' + escapeHtml(j.text) + '</p></div>';
+    }).join("") : "<p>Aucune note enregistrée pour ce chantier.</p>";
+    var html = ""
+      + '<div class="print-head"><h1>Journal de suivi — Hydreau Forage</h1><div class="print-date">Édité le ' + new Date().toLocaleDateString("fr-FR") + '</div></div>'
+      + "<h2>" + escapeHtml(c.client) + " — " + escapeHtml(c.commune) + " (" + escapeHtml(c.dept) + ")</h2>"
+      + '<div class="print-journal">' + rows + "</div>";
+    document.getElementById("printFicheArea").innerHTML = html;
+    window.print();
+  }
+  document.getElementById("journalPrintBtn").addEventListener("click", function(){
+    if(!currentFicheId) return;
+    var c = state.chantiers[currentFicheId];
+    if(!c) return;
+    printJournalHtmlFallback(c);
   });
 
   function ficheForageLengths(c){
