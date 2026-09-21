@@ -2524,9 +2524,46 @@
     Object.keys(needs).forEach(function(depthStr){
       var depth = Number(depthStr);
       if(seenDepths[depth]) return;
-      var newId = "sonde-" + depth + "-" + Date.now();
+      // id stable (basé sur la longueur, pas sur l'heure) : si deux personnes créent la même
+      // longueur au même moment, elles écrivent sur le même document au lieu d'en dupliquer un.
+      var newId = "sonde-" + depth;
       createDoc("stockSondes", newId, {depth: depth, besoin: needs[depthStr], stockGuingamp: 0, stockRennes: 0, order: nextOrder(state.stockSondes)});
     });
+  }
+  /* Fusionne les lignes de stock sondes qui partagent la même longueur (doublons créés avant
+     cette correction, ou via deux ajouts manuels de la même valeur) : on garde la ligne la plus
+     ancienne, on additionne les quantités en stock des autres, puis on les supprime. */
+  function dedupeSondeStock(){
+    var byDepth = {};
+    var merges = [];
+    var deletions = [];
+    // 1) toutes les fusions se font d'abord en mémoire (état local), avant la moindre
+    //    écriture réseau : ainsi, si l'écho de synchronisation relance ce nettoyage,
+    //    l'état local ne contient déjà plus aucun doublon et la fonction ne fait rien.
+    sortedArray(state.stockSondes, byOrder).forEach(function(s){
+      if(s.depth == null) return;
+      if(!byDepth[s.depth]){
+        byDepth[s.depth] = s.id;
+      } else {
+        var keepId = byDepth[s.depth];
+        var keep = state.stockSondes[keepId];
+        keep.stockGuingamp = (keep.stockGuingamp || 0) + (s.stockGuingamp || 0);
+        keep.stockRennes = (keep.stockRennes || 0) + (s.stockRennes || 0);
+        delete state.stockSondes[s.id];
+        merges.push({id: keepId, stockGuingamp: keep.stockGuingamp, stockRennes: keep.stockRennes});
+        deletions.push(s.id);
+      }
+    });
+    // 2) une fois l'état local propre, on répercute vers la base partagée
+    if(dbRef){
+      merges.forEach(function(m){
+        dbRef.doc("stockSondes/" + m.id).update({stockGuingamp: m.stockGuingamp, stockRennes: m.stockRennes}).catch(function(){});
+      });
+      deletions.forEach(function(id){
+        dbRef.doc("stockSondes/" + id).delete().catch(function(){});
+      });
+    }
+    return deletions.length;
   }
   function renderStock(fromRemote){
     var sondesEl = document.getElementById("sondesList");
@@ -2535,6 +2572,8 @@
     var equipEl = document.getElementById("equipList");
     if(fromRemote && (activeElInside(sondesEl) || activeElInside(collEl) || activeElInside(diversEl) || activeElInside(equipEl))) return;
 
+    var merged = dedupeSondeStock();
+    if(merged) showToast(merged > 1 ? (merged + " doublons de sondes fusionnés dans le stock") : "1 doublon de sonde fusionné dans le stock");
     syncSondeNeeds();
     var sondes = sortedArray(state.stockSondes, function(a, b){ return a.depth - b.depth; });
     sondesEl.innerHTML = sondes.length ? sondes.map(function(s){ return stockBarHtml("stockSondes", s.id, s.depth + " m", s.besoin, s.stockGuingamp, s.stockRennes, true); }).join("") : '<div class="hint">Aucune référence — ajoute une longueur ci-dessous.</div>';
@@ -2597,6 +2636,8 @@
     addStockRow("stockSondes", "sondesNewInput", function(raw){
       var depth = parseInt(raw, 10);
       if(!depth || depth <= 0){ showToast("Indique une longueur en mètres"); return null; }
+      var exists = Object.keys(state.stockSondes).some(function(id){ return state.stockSondes[id].depth === depth; });
+      if(exists){ showToast("Une référence de " + depth + " m existe déjà dans le stock"); return null; }
       return {depth:depth, besoin:0, stockGuingamp:0, stockRennes:0};
     });
   });
