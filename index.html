@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -509,6 +510,20 @@
   .fiche-step.cours{background:var(--warn-bg);} .fiche-step.cours .val{color:var(--warn-ink);}
   .fiche-step.probleme{background:var(--crit-bg);} .fiche-step.probleme .val{color:var(--crit-ink);}
   .fiche-step.na{opacity:.5;}
+  .debours-add{display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;}
+  .debours-add input[type="text"]{flex:2; min-width:140px;}
+  .debours-add input[type="number"]{flex:1; min-width:90px;}
+  .debours-list{max-height:180px; overflow-y:auto;}
+  .debours-row{display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border); font-size:12.5px;}
+  .debours-row:last-child{border-bottom:none;}
+  .debours-row .dlabel{flex:1; min-width:0;}
+  .debours-row .ddate{font-size:10.5px; color:var(--ink-muted); display:block;}
+  .debours-row .dmontant{font-weight:700; white-space:nowrap;}
+  .debours-row .ddel{background:none; border:none; color:var(--ink-muted); cursor:pointer; padding:2px; flex:none;}
+  .debours-row .ddel:hover{color:var(--crit-ink);}
+  .debours-row .ddel svg{width:13px;height:13px; display:block;}
+  .debours-empty{font-size:12px; color:var(--ink-muted); padding:6px 0;}
+  .debours-total{margin-top:8px; font-size:13px; font-weight:700; text-align:right;}
   .journal-add textarea{width:100%;}
   .journal-list{margin-top:10px; max-height:220px; overflow-y:auto;}
   .journal-item{border-bottom:1px solid var(--border); padding:8px 0; font-size:12.5px;}
@@ -991,6 +1006,16 @@
         <div class="form-row"><label for="ficheResponsable">Responsable du chantier</label><input type="text" class="field-input" id="ficheResponsable" data-col="chantiers" data-field="responsable"></div>
       </div>
       <div class="fiche-section">
+        <h4>Débours / matériaux utilisés</h4>
+        <div class="debours-add">
+          <input type="text" id="deboursLabelInput" class="field-input" placeholder="Matériau ou dépense (ex : raccord PVC, carburant…)">
+          <input type="number" id="deboursMontantInput" class="field-input" placeholder="Montant €" min="0" step="0.01">
+          <button type="button" class="btn-secondary" id="deboursAddBtn">Ajouter</button>
+        </div>
+        <div class="debours-list" id="deboursList"><!-- injected by JS --></div>
+        <div class="debours-total" id="deboursTotal"><!-- injected by JS --></div>
+      </div>
+      <div class="fiche-section">
         <h4>Reste à faire</h4>
         <textarea id="ficheReste" class="field-input" rows="2" data-col="chantiers" data-field="reste"></textarea>
       </div>
@@ -1008,12 +1033,16 @@
         </div>
         <div class="journal-list" id="journalList"><!-- injected by JS --></div>
       </div>
-      <div class="fiche-actions">
-        <button type="button" class="btn-primary" id="fichePrintBtn" style="justify-content:center;">
+      <div class="fiche-actions" style="flex-wrap:wrap;">
+        <button type="button" class="btn-primary" id="ficheForeurBtn" style="justify-content:center; flex:1 1 45%;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
-          Fiche PDF pour le salarié
+          Fiche foreur
         </button>
-        <button type="button" class="btn-primary" id="ficheDocsBtn" style="justify-content:center;">
+        <button type="button" class="btn-primary" id="ficheRaccordeurBtn" style="justify-content:center; flex:1 1 45%;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
+          Fiche raccordeur
+        </button>
+        <button type="button" class="btn-primary" id="ficheDocsBtn" style="justify-content:center; flex:1 1 100%;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M8 12.5V7a4 4 0 0 1 8 0v9a2.6 2.6 0 0 1-5.2 0V8.5"/></svg>
           Voir les documents
         </button>
@@ -1787,9 +1816,27 @@
       ["Raccordement", c.raccNA ? "Sans objet" : ficheStatusLabel(statutMeta, c.raccStatut || "attente")],
       ["Montant", eur(c.montant)],
       ["Acompte", eur(c.acompte)],
-      ["Solde", eur(solde)]
+      ["Solde", eur(solde)],
+      ["Débours", eur(deboursTotal(c))],
+      ["Marge", eur((c.montant || 0) - deboursTotal(c))]
     ];
     grid.innerHTML = rows.map(function(r){ return '<div class="k">' + r[0] + '</div><div class="v">' + r[1] + '</div>'; }).join("");
+  }
+  function deboursTotal(c){
+    return ((c && c.debours) || []).reduce(function(s, d){ return s + (d.montant || 0); }, 0);
+  }
+  function renderDeboursList(c){
+    var listEl = document.getElementById("deboursList");
+    var totalEl = document.getElementById("deboursTotal");
+    if(!listEl) return;
+    var entries = (c.debours || []);
+    listEl.innerHTML = entries.length ? entries.map(function(d, idx){
+      return '<div class="debours-row"><div class="dlabel"><span class="ddate">' + escapeHtml(d.date) + '</span>' + escapeHtml(d.label) + '</div>'
+        + '<div class="dmontant">' + eur(d.montant) + '</div>'
+        + '<button type="button" class="ddel" data-debours-idx="' + idx + '" title="Supprimer cette ligne" aria-label="Supprimer cette ligne">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>';
+    }).join("") : '<div class="debours-empty">Aucune dépense enregistrée pour l\'instant.</div>';
+    if(totalEl) totalEl.textContent = "Total débours : " + eur(deboursTotal(c));
   }
   function openFiche(id){
     var c = state.chantiers[id];
@@ -1809,6 +1856,9 @@
     document.getElementById("ficheResponsable").value = c.responsable || "";
     renderFicheInfo(c);
     renderFicheSteps(c);
+    document.getElementById("deboursLabelInput").value = "";
+    document.getElementById("deboursMontantInput").value = "";
+    renderDeboursList(c);
     document.getElementById("journalInput").value = "";
     renderJournal(c);
     ficheOverlay.classList.add("open");
@@ -1821,6 +1871,42 @@
     var id = currentFicheId;
     closeFiche();
     openDocs(id);
+  });
+  document.getElementById("deboursAddBtn").addEventListener("click", function(){
+    if(!currentFicheId) return;
+    var id = currentFicheId;
+    var c = state.chantiers[id];
+    if(!c) return;
+    var labelInput = document.getElementById("deboursLabelInput");
+    var montantInput = document.getElementById("deboursMontantInput");
+    var label = (labelInput.value || "").trim();
+    var montant = parseFloat(montantInput.value);
+    if(!label || !isFinite(montant) || montant < 0) return;
+    var entry = { date: new Date().toLocaleDateString("fr-FR"), label: label, montant: montant };
+    var newDebours = (c.debours || []).slice();
+    newDebours.push(entry);
+    labelInput.value = "";
+    montantInput.value = "";
+    patchDoc("chantiers", id, {debours:newDebours}, function(){
+      if(currentFicheId === id){ renderDeboursList(state.chantiers[id]); renderFicheInfo(state.chantiers[id]); }
+      renderChantiers();
+    });
+  });
+  document.getElementById("deboursList").addEventListener("click", function(e){
+    var btn = e.target.closest ? e.target.closest("[data-debours-idx]") : null;
+    if(!btn) return;
+    if(!currentFicheId) return;
+    var id = currentFicheId;
+    var c = state.chantiers[id];
+    if(!c) return;
+    var idx = parseInt(btn.getAttribute("data-debours-idx"), 10);
+    var newDebours = (c.debours || []).slice();
+    if(idx < 0 || idx >= newDebours.length) return;
+    newDebours.splice(idx, 1);
+    patchDoc("chantiers", id, {debours:newDebours}, function(){
+      if(currentFicheId === id){ renderDeboursList(state.chantiers[id]); renderFicheInfo(state.chantiers[id]); }
+      renderChantiers();
+    });
   });
   document.getElementById("journalAddBtn").addEventListener("click", function(){
     if(!currentFicheId) return;
@@ -1874,17 +1960,48 @@
   function ficheAdresseLine(c){
     return (c.adresse ? c.adresse + ", " : "") + c.commune + " (" + c.dept + ")";
   }
-  function printFicheHtmlFallback(c){
+  function ficheKindMeta(kind){
+    return kind === "raccordeur"
+      ? { title: "Fiche raccordeur — Hydreau Forage", filenamePrefix: "Fiche raccordeur" }
+      : { title: "Fiche foreur — Hydreau Forage", filenamePrefix: "Fiche foreur" };
+  }
+  function ficheFieldsFor(c, kind){
+    if(kind === "raccordeur"){
+      return [
+        ["Adresse", ficheAdresseLine(c)],
+        ["Téléphone", c.telephone || "—"],
+        ["Type de chantier", c.type || "—"],
+        ["Longueur(s) forée(s)", ficheForageLengths(c)],
+        ["Statut du forage", ficheStatusLabel(statutMeta, c.forageStatut)],
+        ["Statut du raccordement", c.raccNA ? "Sans objet" : ficheStatusLabel(statutMeta, c.raccStatut || "attente")],
+        ["Notes / reste à faire", c.reste || "—"]
+      ];
+    }
+    return [
+      ["Adresse", ficheAdresseLine(c)],
+      ["Téléphone", c.telephone || "—"],
+      ["Type de chantier", c.type || "—"],
+      ["Longueur(s) de forage prévue(s)", ficheForageLengths(c)],
+      ["Mandat signé", c.mandat ? "Oui" : "Non"],
+      ["DICT", c.dict ? "Faite" : "À faire"],
+      ["PPSPS", c.ppsps ? "Fait" : "À faire"],
+      ["Date de déclaration", c.declaration || "—"],
+      ["Notes / reste à faire", c.reste || "—"]
+    ];
+  }
+  function printFicheHtmlFallback(c, kind){
+    var meta = ficheKindMeta(kind);
+    var fields = ficheFieldsFor(c, kind);
+    var noteField = fields[fields.length - 1];
+    var gridFields = fields.slice(0, -1);
     var html = ""
-      + '<div class="print-head"><h1>Fiche chantier — Hydreau Forage</h1><div class="print-date">Édité le ' + new Date().toLocaleDateString("fr-FR") + '</div></div>'
+      + '<div class="print-head"><h1>' + meta.title + '</h1><div class="print-date">Édité le ' + new Date().toLocaleDateString("fr-FR") + '</div></div>'
       + "<h2>" + c.client + "</h2>"
-      + '<div class="print-grid print-grid-1">'
-        + "<div><b>Longueur(s) de forage</b>" + ficheForageLengths(c) + "</div>"
-        + "<div><b>Adresse</b>" + ficheAdresseLine(c) + "</div>"
-        + "<div><b>Téléphone</b>" + (c.telephone || "—") + "</div>"
+      + '<div class="print-grid">'
+        + gridFields.map(function(f){ return "<div><b>" + f[0] + "</b>" + f[1] + "</div>"; }).join("")
       + "</div>"
-      + "<h3>Note</h3>"
-      + '<p class="print-reste">' + (c.reste ? String(c.reste).replace(/</g, "&lt;") : "—") + "</p>"
+      + "<h3>" + noteField[0] + "</h3>"
+      + '<p class="print-reste">' + String(noteField[1] || "—").replace(/</g, "&lt;") + "</p>"
       + '<div class="print-sign"><div>Équipe / signature</div><div>Date d\'intervention</div></div>';
     document.getElementById("printFicheArea").innerHTML = html;
     window.print();
@@ -1929,8 +2046,9 @@
     return out.length ? out : [""];
   }
   function pdfPad10(n){ var s = String(n); while(s.length < 10) s = "0" + s; return s; }
-  function buildFichePdfBlob(c){
+  function buildFichePdfBlob(c, kind){
     try {
+      var meta = ficheKindMeta(kind);
       var pageWidth = 595, pageHeight = 842, margin = 50;
       var y = pageHeight - 64;
       var ops = [];
@@ -1942,7 +2060,7 @@
       function rule(x1, yy, x2){ ops.push("0.6 w " + x1 + " " + yy + " m " + x2 + " " + yy + " l S"); }
 
       gray(0);
-      text("F1", 17, margin, y, "Fiche chantier — Hydreau Forage");
+      text("F1", 17, margin, y, meta.title);
       y -= 15;
       gray(0.42);
       text("F2", 9, margin, y, "Édité le " + new Date().toLocaleDateString("fr-FR"));
@@ -1955,12 +2073,7 @@
       text("F1", 16, margin, y, c.client);
       y -= 26;
 
-      var fields = [
-        ["Longueur(s) de forage", ficheForageLengths(c)],
-        ["Adresse", ficheAdresseLine(c)],
-        ["Téléphone", c.telephone || "—"],
-        ["Note", c.reste || "—"]
-      ];
+      var fields = ficheFieldsFor(c, kind);
       fields.forEach(function(f){
         gray(0.38);
         text("F1", 9.5, margin, y, f[0].toUpperCase());
@@ -2031,12 +2144,13 @@
       return false;
     }
   }
-  function printFiche(id){
+  function printFiche(id, kind){
     var c = state.chantiers[id];
     if(!c) return;
-    var blob = buildFichePdfBlob(c);
+    var meta = ficheKindMeta(kind);
+    var blob = buildFichePdfBlob(c, kind);
     if(blob){
-      var filename = "Fiche chantier - " + c.client + ".pdf";
+      var filename = meta.filenamePrefix + " - " + c.client + ".pdf";
       if(downloadBlob(filename, blob)){
         showToast("Fiche PDF téléchargée");
         return;
@@ -2045,15 +2159,18 @@
         downloadsRef.save({filename:filename, data:blob}).then(function(){
           showToast("Fiche PDF téléchargée");
         }, function(err){
-          if(err && err.code !== "declined") printFicheHtmlFallback(c);
+          if(err && err.code !== "declined") printFicheHtmlFallback(c, kind);
         });
         return;
       }
     }
-    printFicheHtmlFallback(c);
+    printFicheHtmlFallback(c, kind);
   }
-  document.getElementById("fichePrintBtn").addEventListener("click", function(){
-    if(currentFicheId) printFiche(currentFicheId);
+  document.getElementById("ficheForeurBtn").addEventListener("click", function(){
+    if(currentFicheId) printFiche(currentFicheId, "foreur");
+  });
+  document.getElementById("ficheRaccordeurBtn").addEventListener("click", function(){
+    if(currentFicheId) printFiche(currentFicheId, "raccordeur");
   });
 
   /* ================= PLANNING (équipes + logistique fusionnée) ================= */
