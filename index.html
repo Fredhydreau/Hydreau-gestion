@@ -1033,6 +1033,16 @@
         <h4>Chantier</h4>
         <div class="fiche-grid" id="ficheInfoGrid"><!-- injected by JS --></div>
       </div>
+      <div class="fiche-section" id="ficheSondesSection">
+        <h4>Sondes géothermiques</h4>
+        <div class="debours-add">
+          <input type="number" id="sondeQteInput" class="field-input" placeholder="Nombre de sondes" min="1" step="1" style="flex:1;">
+          <input type="number" id="sondeLongueurInput" class="field-input" placeholder="Longueur (m)" min="1" step="1" style="flex:1;">
+          <button type="button" class="btn-secondary" id="sondeAddBtn">Ajouter</button>
+        </div>
+        <div class="debours-list" id="sondeGroupsList"><!-- injected by JS --></div>
+        <div class="debours-total" id="sondeGroupsTotal"><!-- injected by JS --></div>
+      </div>
       <div class="fiche-section">
         <h4>Suivi du chantier</h4>
         <div class="fiche-steps" id="ficheSteps"><!-- injected by JS --></div>
@@ -1877,8 +1887,7 @@
   function attrVal(v){ return String(v == null ? "" : v).replace(/"/g, "&quot;"); }
   function ficheLongueurCell(c){
     if(c.type === "Géothermie"){
-      var joined = (c.sondes || []).join(", ");
-      return '<input type="text" class="field-input" placeholder="ex : 120, 150" title="Profondeurs des sondes en m, séparées par des virgules" data-fiche-sondes="1" value="' + attrVal(joined) + '">';
+      return totalLongueur(c) ? (totalLongueur(c) + " m — " + nbSondes(c) + " sonde" + (nbSondes(c) > 1 ? "s" : "") + " (voir ci-dessous)") : "à définir ci-dessous";
     }
     return '<input type="number" min="0" class="field-input" data-fiche-depth="1" placeholder="Profondeur en m" value="' + (c.depth || "") + '">';
   }
@@ -1892,7 +1901,7 @@
       ["Commune", '<input type="text" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="commune" value="' + attrVal(c.commune) + '">'],
       ["Département", '<select class="field-input cell-select" data-col="chantiers" data-id="' + c.id + '" data-field="dept">' + deptOpts + '</select>'],
       ["Type", '<select class="field-input cell-select" data-fiche-type="1">' + typeOpts + '</select>'],
-      ["Longueur / sondes", ficheLongueurCell(c)],
+      ["Longueur totale", ficheLongueurCell(c)],
       ["Mandat", boolToggleHtml(c.id, "mandat", c.mandat)],
       ["Date de déclaration", '<input type="text" class="field-input" placeholder="jj/mm/aaaa" data-col="chantiers" data-id="' + c.id + '" data-field="declaration" value="' + attrVal(c.declaration) + '">'],
       ["Statut du forage", statusSelectHtml(c.id, "forageStatut", c.forageStatut)],
@@ -1921,6 +1930,31 @@
     }).join("") : '<div class="debours-empty">Aucune dépense enregistrée pour l\'instant.</div>';
     if(totalEl) totalEl.textContent = "Total débours : " + eur(deboursTotal(c));
   }
+  /* Sondes géothermiques : saisie par groupe "N sondes de X m" (ex : 2 sondes de 130 m
+     + 1 sonde de 120 m), plutôt qu'une liste de longueurs à recopier une par une. Le
+     détail par sonde (c.sondes, un nombre par sonde) reste la donnée de référence pour
+     les besoins de stock — on ne fait que le regrouper ici pour l'affichage/la saisie. */
+  function groupSondes(sondes){
+    var counts = {};
+    (sondes || []).forEach(function(d){ counts[d] = (counts[d] || 0) + 1; });
+    return Object.keys(counts).map(function(d){ return {depth: Number(d), count: counts[d]}; }).sort(function(a, b){ return a.depth - b.depth; });
+  }
+  function renderSondeGroups(c){
+    var section = document.getElementById("ficheSondesSection");
+    if(!section) return;
+    section.hidden = c.type !== "Géothermie";
+    if(c.type !== "Géothermie") return;
+    var listEl = document.getElementById("sondeGroupsList");
+    var totalEl = document.getElementById("sondeGroupsTotal");
+    var groups = groupSondes(c.sondes);
+    listEl.innerHTML = groups.length ? groups.map(function(g){
+      return '<div class="debours-row"><div class="dlabel">' + g.count + ' sonde' + (g.count > 1 ? "s" : "") + ' de ' + g.depth + '&nbsp;m</div>'
+        + '<div class="dmontant">' + (g.count * g.depth) + '&nbsp;m</div>'
+        + '<button type="button" class="ddel" data-sonde-depth="' + g.depth + '" title="Supprimer ce groupe de sondes" aria-label="Supprimer ce groupe de sondes">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>';
+    }).join("") : '<div class="debours-empty">Aucune sonde renseignée pour l\'instant.</div>';
+    if(totalEl) totalEl.textContent = "Total : " + totalLongueur(c) + " m — " + nbSondes(c) + " sonde" + (nbSondes(c) > 1 ? "s" : "");
+  }
   function openFiche(id){
     var c = state.chantiers[id];
     if(!c) return;
@@ -1942,6 +1976,9 @@
     document.getElementById("deboursLabelInput").value = "";
     document.getElementById("deboursMontantInput").value = "";
     renderDeboursList(c);
+    document.getElementById("sondeQteInput").value = "";
+    document.getElementById("sondeLongueurInput").value = "";
+    renderSondeGroups(c);
     document.getElementById("journalInput").value = "";
     renderJournal(c);
     ficheOverlay.classList.add("open");
@@ -1988,6 +2025,39 @@
     newDebours.splice(idx, 1);
     patchDoc("chantiers", id, {debours:newDebours}, function(){
       if(currentFicheId === id){ renderDeboursList(state.chantiers[id]); renderFicheInfo(state.chantiers[id]); }
+      renderChantiers();
+    });
+  });
+  document.getElementById("sondeAddBtn").addEventListener("click", function(){
+    if(!currentFicheId) return;
+    var id = currentFicheId;
+    var c = state.chantiers[id];
+    if(!c) return;
+    var qteInput = document.getElementById("sondeQteInput");
+    var longInput = document.getElementById("sondeLongueurInput");
+    var qte = parseInt(qteInput.value, 10);
+    var longueur = parseInt(longInput.value, 10);
+    if(!qte || qte < 1 || !longueur || longueur < 1) return;
+    var newSondes = (c.sondes || []).slice();
+    for(var i = 0; i < qte; i++){ newSondes.push(longueur); }
+    qteInput.value = "";
+    longInput.value = "";
+    patchDoc("chantiers", id, {sondes:newSondes}, function(){
+      if(currentFicheId === id){ renderSondeGroups(state.chantiers[id]); renderFicheInfo(state.chantiers[id]); }
+      renderChantiers();
+    });
+  });
+  document.getElementById("sondeGroupsList").addEventListener("click", function(e){
+    var btn = e.target.closest ? e.target.closest("[data-sonde-depth]") : null;
+    if(!btn) return;
+    if(!currentFicheId) return;
+    var id = currentFicheId;
+    var c = state.chantiers[id];
+    if(!c) return;
+    var depth = Number(btn.getAttribute("data-sonde-depth"));
+    var newSondes = (c.sondes || []).filter(function(d){ return d !== depth; });
+    patchDoc("chantiers", id, {sondes:newSondes}, function(){
+      if(currentFicheId === id){ renderSondeGroups(state.chantiers[id]); renderFicheInfo(state.chantiers[id]); }
       renderChantiers();
     });
   });
@@ -2765,6 +2835,7 @@
     document.getElementById("ficheClientName").textContent = c.client;
     document.getElementById("ficheSubline").textContent = c.commune + " (" + c.dept + ") · " + c.type;
     renderFicheInfo(c);
+    renderSondeGroups(c);
   }
   var RENDER_MAP = {
     chantiers: function(){ renderChantiers(); refreshOpenFiche(); },
@@ -2785,11 +2856,6 @@
     if(t.hasAttribute("data-fiche-type")){
       var newType = t.value;
       patchDoc("chantiers", id, {type: newType, raccNA: (newType !== "Géothermie")}, RENDER_MAP.chantiers);
-      return;
-    }
-    if(t.hasAttribute("data-fiche-sondes")){
-      var sondes = t.value.split(",").map(function(s){ return parseInt(s.trim(), 10); }).filter(function(n){ return !isNaN(n); });
-      patchDoc("chantiers", id, {sondes: sondes}, RENDER_MAP.chantiers);
       return;
     }
     if(t.hasAttribute("data-fiche-depth")){
