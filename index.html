@@ -494,7 +494,10 @@
   /* ---------- fiche chantier ---------- */
   .client-link{background:none; border:none; padding:0; font:inherit; font-weight:700; color:var(--brand-teal-ink); cursor:pointer; text-align:left;}
   .client-link:hover{text-decoration:underline;}
-  .fiche-section{margin-bottom:16px;}
+  .cell-link{background:none; border:none; padding:0; font:inherit; color:inherit; cursor:pointer; text-align:left;}
+  .cell-link:hover{text-decoration:underline; color:var(--brand-teal-ink);}
+  .fiche-section{margin-bottom:16px; border-radius:10px; transition:background-color .3s ease, box-shadow .3s ease;}
+  .fiche-section.fiche-highlight{background-color:var(--brand-teal-soft, #e5f4f2); box-shadow:0 0 0 2px var(--brand-teal-ink, #1a7f72); padding:8px; margin:-8px -8px 8px -8px;}
   .fiche-section h4{font-size:12px; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-muted); margin:0 0 8px;}
   .fiche-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; font-size:12.5px;}
   .fiche-grid .k{color:var(--ink-muted);}
@@ -1543,12 +1546,15 @@
   }
   function totalLongueurCell(c){
     var v = totalLongueur(c);
-    return v ? '<span class="mono">' + v + '&nbsp;m</span>' : '<span class="phase-na">—</span>';
+    var label = v ? ('<span class="mono">' + v + '&nbsp;m</span>') : '<span class="phase-na">—</span>';
+    var scrollAttr = c.type === "Géothermie" ? ' data-fiche-scroll="sondes"' : '';
+    return '<button type="button" class="cell-link" data-fiche-id="' + c.id + '"' + scrollAttr + ' title="Modifier dans la fiche">' + label + '</button>';
   }
   function nbSondesCell(c){
     if(c.type !== "Géothermie") return '<span class="phase-na">—</span>';
     var n = nbSondes(c);
-    return n ? String(n) : '<span class="phase-na">à définir</span>';
+    var label = n ? String(n) : '<span class="phase-na">à définir</span>';
+    return '<button type="button" class="cell-link" data-fiche-id="' + c.id + '" data-fiche-scroll="sondes" title="Modifier dans la fiche">' + label + '</button>';
   }
   function sondesCell(c){
     if(c.type === "Pompage" || c.type === "Dépannage" || c.type === "Autre"){
@@ -1955,7 +1961,7 @@
     }).join("") : '<div class="debours-empty">Aucune sonde renseignée pour l\'instant.</div>';
     if(totalEl) totalEl.textContent = "Total : " + totalLongueur(c) + " m — " + nbSondes(c) + " sonde" + (nbSondes(c) > 1 ? "s" : "");
   }
-  function openFiche(id){
+  function openFiche(id, opts){
     var c = state.chantiers[id];
     if(!c) return;
     currentFicheId = id;
@@ -1982,6 +1988,18 @@
     document.getElementById("journalInput").value = "";
     renderJournal(c);
     ficheOverlay.classList.add("open");
+    if(opts && opts.scrollTo === "sondes"){
+      setTimeout(function(){
+        var section = document.getElementById("ficheSondesSection");
+        if(section && !section.hidden){
+          section.scrollIntoView({behavior:"smooth", block:"center"});
+          section.classList.add("fiche-highlight");
+          setTimeout(function(){ section.classList.remove("fiche-highlight"); }, 1600);
+          var qteInput = document.getElementById("sondeQteInput");
+          if(qteInput) qteInput.focus();
+        }
+      }, 50);
+    }
   }
   function closeFiche(){ ficheOverlay.classList.remove("open"); currentFicheId = null; }
   document.getElementById("ficheClose").addEventListener("click", closeFiche);
@@ -2906,8 +2924,8 @@
     }
     var docsBtn = e.target.closest ? e.target.closest(".docs-btn") : null;
     if(docsBtn){ openDocs(docsBtn.getAttribute("data-id")); return; }
-    var ficheBtn = e.target.closest ? e.target.closest(".client-link, .plan-fiche-btn") : null;
-    if(ficheBtn){ openFiche(ficheBtn.getAttribute("data-fiche-id")); return; }
+    var ficheBtn = e.target.closest ? e.target.closest(".client-link, .plan-fiche-btn, .cell-link") : null;
+    if(ficheBtn){ openFiche(ficheBtn.getAttribute("data-fiche-id"), {scrollTo: ficheBtn.getAttribute("data-fiche-scroll")}); return; }
   });
 
   /* ================= boot: paint immediately from local seed ================= */
