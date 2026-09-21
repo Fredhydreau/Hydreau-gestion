@@ -633,6 +633,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 21h14"/></svg>
         Exporter Excel
       </button>
+      <button class="btn-secondary" id="importClientsBtn" title="Importer des clients depuis un fichier Excel/CSV">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 21V8m0 0-4 4m4-4 4 4M5 3h14"/></svg>
+        Importer clients
+      </button>
+      <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" hidden>
       <button class="btn-secondary" id="logoutBtn" title="Se déconnecter">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
         Déconnexion
@@ -714,12 +719,14 @@
           <button class="chip" data-filter="dept" data-val="29">29</button>
           <button class="chip" data-filter="dept" data-val="35">35</button>
           <button class="chip" data-filter="dept" data-val="56">56</button>
+          <button class="chip" data-filter="dept" data-val="44">44</button>
           <div class="filter-sep"></div>
           <button class="chip active" data-filter="type" data-val="all">Tous types</button>
           <button class="chip" data-filter="type" data-val="Géothermie">Géothermie</button>
           <button class="chip" data-filter="type" data-val="Forage eau">Forage eau</button>
           <button class="chip" data-filter="type" data-val="Pompage">Pompage</button>
           <button class="chip" data-filter="type" data-val="Dépannage">Dépannage</button>
+          <button class="chip" data-filter="type" data-val="Autre">Autre</button>
           <div class="filter-sep"></div>
           <button class="chip" id="planifierToggle">À planifier uniquement</button>
         </div>
@@ -943,10 +950,10 @@
         <div class="form-row"><label for="ncCommune">Commune</label><input type="text" id="ncCommune"></div>
         <div class="form-row-2">
           <div class="form-row"><label for="ncDept">Département</label>
-            <select id="ncDept"><option value="22">22</option><option value="29">29</option><option value="35">35</option><option value="56">56</option></select>
+            <select id="ncDept"><option value="22">22</option><option value="29">29</option><option value="35">35</option><option value="56">56</option><option value="44">44</option></select>
           </div>
           <div class="form-row"><label for="ncType">Type</label>
-            <select id="ncType"><option value="Géothermie">Géothermie</option><option value="Forage eau">Forage eau</option><option value="Pompage">Pompage</option><option value="Dépannage">Dépannage</option></select>
+            <select id="ncType"><option value="Géothermie">Géothermie</option><option value="Forage eau">Forage eau</option><option value="Pompage">Pompage</option><option value="Dépannage">Dépannage</option><option value="Autre">Autre</option></select>
           </div>
         </div>
         <div class="form-row" id="ncSondesRow"><label for="ncSondes">Sondes géothermiques — profondeurs en m (80 à 200), séparées par des virgules</label><input type="text" id="ncSondes" placeholder="ex : 120, 120"></div>
@@ -966,6 +973,37 @@
           Créer le chantier
         </button>
       </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importOverlay">
+  <div class="modal-panel" style="max-width:640px;">
+    <div class="modal-head">
+      <div>
+        <h3>Importer des clients</h3>
+        <div class="sub">Depuis le fichier Excel exporté de ton tableau de suivi (Numbers ou Excel)</div>
+      </div>
+      <button class="modal-close" id="importClose" aria-label="Fermer">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="importIntro">
+        <p class="hint" style="margin-bottom:12px;">Choisis le fichier .xlsx exporté depuis ton tableau « Suivi dossiers ». Les colonnes Client, Commune, Type de forage, Statut, Montant ht, Metre, DT-DICT, Mandat, PPSPS, etc. sont reconnues automatiquement. Les chantiers déjà importés ne sont pas recréés en double.</p>
+        <button type="button" class="btn-primary" id="importChooseFileBtn" style="width:100%; justify-content:center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 21V8m0 0-4 4m4-4 4 4M5 3h14"/></svg>
+          Choisir le fichier Excel
+        </button>
+      </div>
+      <div id="importPreview" hidden>
+        <div class="hint" id="importSummary" style="margin-bottom:10px;"></div>
+        <div class="debours-list" id="importList" style="max-height:320px;"></div>
+        <div class="fiche-actions" style="margin-top:14px;">
+          <button type="button" class="btn-secondary" id="importCancelBtn">Annuler</button>
+          <button type="button" class="btn-primary" id="importConfirmBtn">Confirmer l'import</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -1264,7 +1302,7 @@
       sondes: sondes,
       depth: depth,
       forageStatut: "attente",
-      raccNA: (type === "Forage eau" || type === "Pompage" || type === "Dépannage"),
+      raccNA: (type === "Forage eau" || type === "Pompage" || type === "Dépannage" || type === "Autre"),
       raccStatut: null,
       reste: "",
       planifier: true,
@@ -1316,7 +1354,8 @@
     "Géothermie":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v6M9 6l3-3 3 3"/><path d="M5 21c0-5 3-9 7-9s7 4 7 9"/></svg>',
     "Forage eau":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 4h4l-2 5-2 5H8L6 9 4 4h4"/><path d="M8 14v6M16 14v6"/></svg>',
     "Pompage":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="13" r="7"/><path d="M12 6V3M9 3h6"/></svg>',
-    "Dépannage":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.8 2.8-2-2z"/></svg>'
+    "Dépannage":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.8 2.8-2-2z"/></svg>',
+    "Autre":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v4l3 2"/></svg>'
   };
   function eur(n){ return (n || 0).toLocaleString("fr-FR") + " €"; }
 
@@ -1482,7 +1521,8 @@
 
   /* ================= CHANTIERS ================= */
   function sondesCell(c){
-    if(c.type === "Pompage" || c.type === "Dépannage"){
+    if(c.type === "Pompage" || c.type === "Dépannage" || c.type === "Autre"){
+      if(c.depth){ return '<span class="sondes-lbl">Intervention &middot; ' + c.depth + '&nbsp;m<span class="sondes-sub">' + c.type + '</span></span>'; }
       return '<span class="phase-na">— (intervention)</span>';
     }
     if(c.type === "Forage eau"){
@@ -1951,7 +1991,7 @@
     if(c.type === "Géothermie" && c.sondes && c.sondes.length){
       return c.sondes.map(function(s){ return s + " m"; }).join("  +  ");
     }
-    if(c.type === "Forage eau" && c.depth){
+    if((c.type === "Forage eau" || c.type === "Autre") && c.depth){
       return c.depth + " m";
     }
     return "—";
@@ -2417,10 +2457,10 @@
   });
 
   /* ================= DASHBOARD (calculé à partir des données réelles) ================= */
-  var DEPT_LABELS = {"22":"Côtes-d'Armor", "29":"Finistère", "35":"Ille-et-Vilaine", "56":"Morbihan"};
-  var DEPT_COLORS = ["var(--seq-blue-1)", "var(--seq-blue-2)", "var(--seq-blue-3)", "var(--seq-blue-4)"];
-  var ACTIVITY_TYPES = ["Géothermie", "Forage eau", "Pompage", "Dépannage"];
-  var ACTIVITY_COLORS = ["var(--seq-orange-1)", "var(--seq-orange-2)", "var(--seq-orange-3)", "var(--seq-orange-4)"];
+  var DEPT_LABELS = {"22":"Côtes-d'Armor", "29":"Finistère", "35":"Ille-et-Vilaine", "56":"Morbihan", "44":"Loire-Atlantique"};
+  var DEPT_COLORS = ["var(--seq-blue-1)", "var(--seq-blue-2)", "var(--seq-blue-3)", "var(--seq-blue-4)", "var(--ink-muted)"];
+  var ACTIVITY_TYPES = ["Géothermie", "Forage eau", "Pompage", "Dépannage", "Autre"];
+  var ACTIVITY_COLORS = ["var(--seq-orange-1)", "var(--seq-orange-2)", "var(--seq-orange-3)", "var(--seq-orange-4)", "var(--ink-muted)"];
   function setText(id, txt){ var el = document.getElementById(id); if(el) el.textContent = txt; }
   function renderDashboard(){
     if(!document.getElementById("dashCaTotal")) return;
@@ -2569,7 +2609,7 @@
 
   /* ---------- statistiques par équipe (CA / mètres / raccordements) ---------- */
   var TEAM_TYPES_FORAGE = ["Géothermie", "Forage eau"];
-  var TEAM_TYPES_AUTRES = ["Pompage", "Dépannage"];
+  var TEAM_TYPES_AUTRES = ["Pompage", "Dépannage", "Autre"];
   function planningTeamOf(id){
     var m = id.match(/-(a|b|c|d|r1|r2)-\d+$/);
     return m ? m[1] : null;
@@ -2805,6 +2845,215 @@
   }
   var exportExcelBtnEl = document.getElementById("exportExcelBtn");
   if(exportExcelBtnEl) exportExcelBtnEl.addEventListener("click", exportAllToExcel);
+
+  /* ================= IMPORT CLIENTS (Excel / Numbers) ================= */
+  function normHeader(s){
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+  }
+  var IMPORT_HEADER_MAP = {
+    "dossier":"dossier", "client":"client", "commune":"commune", "type de forage":"typeForage",
+    "importateur":"importateur", "responsable":"responsable", "statut":"statut", "priorite":"priorite",
+    "demarche / declaration":"demarche", "date depot":"dateDepot", "reference / recepisse":"reference",
+    "echeance administrative":"echeance", "dt-dict":"dtdict", "mandat":"mandat", "plan implantation":"planImplantation",
+    "ppsps / securite":"ppsps", "bon a planifier":"bonAPlanifier", "date chantier":"dateChantier",
+    "rapport forage":"rapportForage", "pv reception":"pvReception", "facturation":"facturation",
+    "prochaine action":"prochaineAction", "date relance":"dateRelance", "lien dossier":"lienDossier",
+    "notes":"notes", "metre":"metre", "montant ht":"montantHt"
+  };
+  var DEPT_BY_COMMUNE = {
+    "chatelaudren":"22","graces":"22","trebeurden":"22","tredrez loquemeau":"22","plouisy":"22","squiffiec":"22",
+    "louannec":"22","louargat":"22","pommerit le vicomte":"22","plerin":"22","lanrivain":"22","berhet":"22",
+    "pedernec":"22","plesidy":"22","plounevez quintin":"22","plenee jugon":"22","st brieuc":"22","saint brieuc":"22",
+    "pordic":"22","loudeac":"22","le merzer":"22","gerledan":"22","la chapelle neuve":"22","quemper guezen":"22",
+    "le quillio":"22","treffrin":"22","treve":"22","perros guirec":"22","ploubazlanec":"22",
+    "edern":"29","gourin":"29","langonnet":"29","poullan/mer":"29","poullan sur mer":"29","guerlesquin":"29","lennon":"29",
+    "ambon":"56","arzal":"56","arzon":"56","baden":"56","carnac":"56","evellys":"56","guidel":"56","gueltas":"56",
+    "malestroit":"56","pleugriffet":"56","ploemeur":"56","questembert":"56","vannes":"56","peaule":"56",
+    "le faouet":"56","guer":"56","belle isle":"56",
+    "chateaugiron":"35","guichen":"35","iffendic":"35","laille":"35","lalleu":"35","miniac sous becherel":"35",
+    "st malo de phily":"35","saint malo de phily":"35","guignen":"35","brie":"35","orgere":"35",
+    "nantes":"44","vertou":"44","suce sur erdre":"44"
+  };
+  function guessDept(commune){ return DEPT_BY_COMMUNE[normHeader(commune)] || "22"; }
+  var IMPORT_STATUT_MAP = {
+    "a creer":{forageStatut:"attente", declarationValidee:false},
+    "a completer":{forageStatut:"attente", declarationValidee:false},
+    "pret a deposer":{forageStatut:"attente", declarationValidee:false},
+    "depose":{forageStatut:"attente", declarationValidee:false},
+    "complement demande":{forageStatut:"probleme", declarationValidee:false},
+    "en attente administration":{forageStatut:"attente", declarationValidee:false},
+    "valide":{forageStatut:"attente", declarationValidee:true},
+    "bon a planifier":{forageStatut:"attente", declarationValidee:true},
+    "planifie":{forageStatut:"cours", declarationValidee:true},
+    "en cours":{forageStatut:"cours", declarationValidee:true},
+    "termine":{forageStatut:"ok", declarationValidee:true},
+    "cloture":{forageStatut:"ok", declarationValidee:true},
+    "bloque":{forageStatut:"probleme", declarationValidee:false}
+  };
+  function mapStatut(s){ return IMPORT_STATUT_MAP[normHeader(s)] || {forageStatut:"attente", declarationValidee:false}; }
+  function mapTypeForage(t){
+    var key = normHeader(t);
+    if(key === "gmi" || key.indexOf("geothermie") >= 0) return "Géothermie";
+    if(key.indexOf("forage d'eau") >= 0 || key.indexOf("forage deau") >= 0 || key.indexOf("piezometre") >= 0) return "Forage eau";
+    return "Autre";
+  }
+  function ynImport(v){ return normHeader(v) === "oui"; }
+  function fmtDateFR(v){
+    if(!v) return "";
+    if(v instanceof Date && !isNaN(v.getTime())){
+      return ("0" + v.getDate()).slice(-2) + "/" + ("0" + (v.getMonth() + 1)).slice(-2) + "/" + v.getFullYear();
+    }
+    return String(v);
+  }
+  function slugify(s){
+    return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+  var pendingImportRows = [];
+  function findImportSheet(wb){
+    var byName = wb.SheetNames.filter(function(n){ return normHeader(n).indexOf("suivi") >= 0; });
+    var names = byName.length ? byName : wb.SheetNames;
+    for(var i = 0; i < names.length; i++){
+      var ws = wb.Sheets[names[i]];
+      var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+      for(var r = 0; r < Math.min(rows.length, 12); r++){
+        var normRow = (rows[r] || []).map(normHeader);
+        if(normRow.indexOf("client") >= 0 && normRow.indexOf("commune") >= 0){
+          return {rows:rows, headerRowIndex:r};
+        }
+      }
+    }
+    return null;
+  }
+  function parseImportFile(arrayBuffer){
+    var wb = XLSX.read(arrayBuffer, {type:"array", cellDates:true});
+    var found = findImportSheet(wb);
+    if(!found) return {rows:[], error:"Colonnes « Client » et « Commune » introuvables dans ce fichier."};
+    var headerRow = found.rows[found.headerRowIndex];
+    var colIdx = {};
+    headerRow.forEach(function(h, i){
+      var key = IMPORT_HEADER_MAP[normHeader(h)];
+      if(key) colIdx[key] = i;
+    });
+    var existingOrder = sortedArray(state.chantiers, byOrder).reduce(function(m, c){ return Math.max(m, c.order || 0); }, -1);
+    var results = [];
+    for(var r = found.headerRowIndex + 1; r < found.rows.length; r++){
+      var raw = found.rows[r] || [];
+      var cell = (function(raw){ return function(key){ return colIdx.hasOwnProperty(key) ? raw[colIdx[key]] : null; }; })(raw);
+      var clientRaw = cell("client");
+      var clientName = (clientRaw === null || clientRaw === undefined) ? "" : String(clientRaw).trim();
+      if(!clientName || normHeader(clientName) === "client") continue;
+      var communeRaw = cell("commune");
+      var commune = communeRaw ? String(communeRaw).trim() : "";
+      var montant = Number(cell("montantHt")) || 0;
+      var metre = Number(cell("metre")) || 0;
+      var type = mapTypeForage(cell("typeForage"));
+      var statutOriginal = cell("statut") ? String(cell("statut")).trim() : "";
+      var statutInfo = mapStatut(statutOriginal);
+      var sondes = (type === "Géothermie" && metre) ? [metre] : [];
+      var depth = (type !== "Géothermie" && metre) ? metre : null;
+      var id = "imp-" + slugify(clientName + "-" + commune + "-" + montant);
+      var resteLines = [];
+      if(statutOriginal) resteLines.push("Statut du dossier (import) : " + statutOriginal);
+      if(normHeader(cell("priorite")) === "haute") resteLines.push("Priorité : Haute");
+      if(cell("demarche")) resteLines.push("Démarche / déclaration : " + cell("demarche"));
+      if(cell("reference")) resteLines.push("Référence / récépissé : " + cell("reference"));
+      if(cell("echeance")) resteLines.push("Échéance administrative : " + fmtDateFR(cell("echeance")));
+      if(ynImport(cell("planImplantation"))) resteLines.push("Plan d'implantation : fait");
+      if(cell("dateChantier")) resteLines.push("Date de chantier prévue : " + fmtDateFR(cell("dateChantier")));
+      if(ynImport(cell("rapportForage"))) resteLines.push("Rapport de forage : reçu");
+      if(ynImport(cell("pvReception"))) resteLines.push("PV de réception : reçu");
+      if(cell("facturation")) resteLines.push("Facturation : " + cell("facturation"));
+      if(cell("prochaineAction")) resteLines.push("Prochaine action : " + cell("prochaineAction"));
+      if(cell("dateRelance")) resteLines.push("Relance prévue le : " + fmtDateFR(cell("dateRelance")));
+      if(cell("lienDossier")) resteLines.push("Dossier complet : " + cell("lienDossier"));
+      if(cell("notes")) resteLines.push("Notes : " + cell("notes"));
+      if(cell("importateur")) resteLines.push("Importateur / apporteur : " + cell("importateur"));
+      var data = {
+        client: clientName, telephone: "", email: "", adresse: "",
+        commune: commune, dept: guessDept(commune),
+        mandat: ynImport(cell("mandat")),
+        declaration: cell("dateDepot") ? fmtDateFR(cell("dateDepot")) : null,
+        declarationValidee: statutInfo.declarationValidee,
+        type: type, sondes: sondes, depth: depth,
+        forageStatut: statutInfo.forageStatut,
+        raccNA: (type !== "Géothermie"),
+        raccStatut: null,
+        reste: resteLines.join("\n"),
+        planifier: ynImport(cell("bonAPlanifier")),
+        dict: ynImport(cell("dtdict")),
+        ppsps: ynImport(cell("ppsps")),
+        montant: montant, acompte: 0,
+        vendeur: cell("importateur") ? String(cell("importateur")).trim() : "",
+        suivi: cell("responsable") ? String(cell("responsable")).trim() : "",
+        responsable: "",
+        docs: [],
+        journal: [{date: new Date().toLocaleDateString("fr-FR"), text: "Dossier importé automatiquement depuis le tableau de suivi."}],
+        debours: [],
+        order: existingOrder + 1 + results.length
+      };
+      results.push({id:id, data:data, exists: !!state.chantiers[id]});
+    }
+    return {rows: results, error: null};
+  }
+  function renderImportPreview(parsed){
+    var listEl = document.getElementById("importList");
+    var summaryEl = document.getElementById("importSummary");
+    var toCreate = parsed.rows.filter(function(r){ return !r.exists; });
+    var already = parsed.rows.length - toCreate.length;
+    summaryEl.textContent = parsed.rows.length + " chantier(s) détecté(s) dans le fichier — " + toCreate.length + " à créer" + (already ? (", " + already + " déjà importé(s) (ignorés)") : "") + ".";
+    listEl.innerHTML = parsed.rows.length ? parsed.rows.map(function(r){
+      var tag = r.exists ? '<span class="phase-na">déjà importé</span>' : '<span class="dmontant">' + eur(r.data.montant) + '</span>';
+      return '<div class="debours-row"><div class="dlabel"><span class="ddate">' + escapeHtml(r.data.commune || "—") + ' &middot; ' + escapeHtml(r.data.type) + '</span>' + escapeHtml(r.data.client) + '</div>' + tag + '</div>';
+    }).join("") : '<div class="debours-empty">Aucun chantier reconnu dans ce fichier.</div>';
+  }
+  function closeImportOverlay(){ document.getElementById("importOverlay").classList.remove("open"); }
+  document.getElementById("importClientsBtn").addEventListener("click", function(){
+    document.getElementById("importIntro").hidden = false;
+    document.getElementById("importPreview").hidden = true;
+    document.getElementById("importFileInput").value = "";
+    pendingImportRows = [];
+    document.getElementById("importOverlay").classList.add("open");
+  });
+  document.getElementById("importClose").addEventListener("click", closeImportOverlay);
+  document.getElementById("importCancelBtn").addEventListener("click", closeImportOverlay);
+  document.getElementById("importOverlay").addEventListener("click", function(e){
+    if(e.target === document.getElementById("importOverlay")) closeImportOverlay();
+  });
+  document.getElementById("importChooseFileBtn").addEventListener("click", function(){
+    document.getElementById("importFileInput").click();
+  });
+  document.getElementById("importFileInput").addEventListener("change", function(e){
+    var file = e.target.files && e.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = parseImportFile(reader.result);
+        if(parsed.error){ showToast(parsed.error); return; }
+        pendingImportRows = parsed.rows;
+        renderImportPreview(parsed);
+        document.getElementById("importIntro").hidden = true;
+        document.getElementById("importPreview").hidden = false;
+      } catch(err){
+        console.error("import parse error", err);
+        showToast("Impossible de lire ce fichier");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+  document.getElementById("importConfirmBtn").addEventListener("click", function(){
+    var toCreate = pendingImportRows.filter(function(r){ return !r.exists && !state.chantiers[r.id]; });
+    if(!toCreate.length){
+      showToast("Rien à importer (déjà fait, ou fichier vide)");
+      closeImportOverlay();
+      return;
+    }
+    toCreate.forEach(function(r){ createDoc("chantiers", r.id, r.data); });
+    renderChantiers();
+    renderDashboard();
+    closeImportOverlay();
+    showToast(toCreate.length + " chantier(s) importé(s) — partagé avec les autres postes");
+  });
 
   function initAssets(){
     getAssets().then(function(a){ assetsRef = a; });
