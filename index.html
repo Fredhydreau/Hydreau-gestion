@@ -205,6 +205,7 @@
   .bool-toggle{border:none; cursor:pointer;}
   .num-input{width:56px; border:1px solid var(--border); background:var(--surface); border-radius:6px; padding:3px 6px; font:inherit; font-family:"IBM Plex Mono"; font-size:12px; text-align:right;}
   .num-input:focus{border-color:var(--brand-teal); outline:none;}
+  .num-input.besoin-auto{background:var(--surface-2); color:var(--ink-soft); cursor:default;}
   .row-actions{display:flex; gap:6px;}
   .icon-btn{border:1px solid var(--border); background:var(--surface); border-radius:7px; width:26px; height:26px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink-muted);}
   .icon-btn:hover{border-color:var(--crit); color:var(--crit-ink);}
@@ -729,6 +730,8 @@
           <button class="chip" data-filter="type" data-val="Autre">Autre</button>
           <div class="filter-sep"></div>
           <button class="chip" id="planifierToggle">À planifier uniquement</button>
+          <div class="filter-sep"></div>
+          <button class="chip" id="clearResteBtn" title="Vider le champ « Reste à faire » de tous les chantiers" style="color:var(--crit-ink);">Vider tous les « Reste à faire »</button>
         </div>
         <div class="hint" style="margin:-6px 0 14px;">Un chantier par client &middot; le raccordement démarre toujours une fois le forage terminé &middot; les équipes sont affectées dans le Planning &middot; cliquer sur un client ouvre sa fiche</div>
 
@@ -737,7 +740,7 @@
           <table id="chantiersTable">
             <thead>
               <tr>
-                <th>Client</th><th>Commune</th><th>Responsable</th><th>Mandat</th><th>Date de déclaration</th><th>Décl. validée</th><th>Type</th><th>Sondes / forage</th><th>Statut</th><th>Raccordement</th>
+                <th>Client</th><th>Commune</th><th>Responsable</th><th>Mandat</th><th>Date de déclaration</th><th>Décl. validée</th><th>Type</th><th>Longueur totale</th><th>Nb sondes</th><th>Statut</th><th>Raccordement</th>
                 <th>Reste à faire</th><th>DICT</th><th>PPSPS</th><th>À planifier</th><th>Montant</th><th>Acompte</th><th>Solde</th><th>Docs</th><th>Suppr.</th>
               </tr>
             </thead>
@@ -746,7 +749,7 @@
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="14" id="chantiersFooterLabel">Total — 14 chantiers &middot; 2 094&nbsp;m forés</td>
+                <td colspan="15" id="chantiersFooterLabel">Total — 14 chantiers &middot; 2 094&nbsp;m forés</td>
                 <td class="num" id="chantiersFooterMontant">106 702&nbsp;€</td>
                 <td class="num" id="chantiersFooterAcompte">52 083&nbsp;€</td>
                 <td class="num" id="chantiersFooterSolde">54 619&nbsp;€</td>
@@ -1520,6 +1523,23 @@
   }
 
   /* ================= CHANTIERS ================= */
+  function totalLongueur(c){
+    if(c.type === "Géothermie" && c.sondes && c.sondes.length){ return c.sondes.reduce(function(s, v){ return s + v; }, 0); }
+    if((c.type === "Forage eau" || c.type === "Autre") && c.depth){ return c.depth; }
+    return 0;
+  }
+  function nbSondes(c){
+    return (c.type === "Géothermie" && c.sondes) ? c.sondes.length : 0;
+  }
+  function totalLongueurCell(c){
+    var v = totalLongueur(c);
+    return v ? '<span class="mono">' + v + '&nbsp;m</span>' : '<span class="phase-na">—</span>';
+  }
+  function nbSondesCell(c){
+    if(c.type !== "Géothermie") return '<span class="phase-na">—</span>';
+    var n = nbSondes(c);
+    return n ? String(n) : '<span class="phase-na">à définir</span>';
+  }
   function sondesCell(c){
     if(c.type === "Pompage" || c.type === "Dépannage" || c.type === "Autre"){
       if(c.depth){ return '<span class="sondes-lbl">Intervention &middot; ' + c.depth + '&nbsp;m<span class="sondes-sub">' + c.type + '</span></span>'; }
@@ -1573,7 +1593,7 @@
     var q = (document.getElementById("searchInput").value || "").trim().toLowerCase();
     var onlyToPlan = document.getElementById("planifierToggle").classList.contains("active");
 
-    var rows = sortedArray(state.chantiers, byOrder).filter(function(c){
+    var rows = sortedArray(state.chantiers, function(a, b){ return (a.client || "").localeCompare(b.client || "", "fr"); }).filter(function(c){
       if(dept !== "all" && c.dept !== dept) return false;
       if(type !== "all" && c.type !== type) return false;
       if(onlyToPlan && !c.planifier) return false;
@@ -1591,7 +1611,8 @@
         + '<td class="mono"><input type="text" class="cell-input field-input" placeholder="jj/mm/aaaa" data-col="chantiers" data-id="' + c.id + '" data-field="declaration" value="' + String(c.declaration || "").replace(/"/g, "&quot;") + '"></td>'
         + '<td>' + boolCheckbox(c.id, "declarationValidee", c.declarationValidee) + "</td>"
         + '<td><span class="type-tag">' + typeIcon[c.type] + c.type + "</span></td>"
-        + '<td>' + sondesCell(c) + "</td>"
+        + '<td>' + totalLongueurCell(c) + "</td>"
+        + '<td>' + nbSondesCell(c) + "</td>"
         + '<td>' + statusSelectHtml(c.id, "forageStatut", c.forageStatut) + "</td>"
         + '<td>' + raccCell(c) + "</td>"
         + '<td><input type="text" class="cell-input field-input" data-col="chantiers" data-id="' + c.id + '" data-field="reste" value="' + String(c.reste || "").replace(/"/g, "&quot;") + '"></td>'
@@ -1610,7 +1631,7 @@
     updateChantiersFooter();
     renderBacklog();
     renderBacklogForages();
-    renderDashboard();
+    renderStock();
   }
   function updateChantiersFooter(){
     var all = sortedArray(state.chantiers, byOrder);
@@ -1663,6 +1684,14 @@
   document.getElementById("planifierToggle").addEventListener("click", function(){
     this.classList.toggle("active");
     renderChantiers();
+  });
+  document.getElementById("clearResteBtn").addEventListener("click", function(){
+    var ids = Object.keys(state.chantiers).filter(function(id){ return (state.chantiers[id].reste || "") !== ""; });
+    if(!ids.length){ showToast("Aucun texte à supprimer dans « Reste à faire »"); return; }
+    if(!window.confirm("Vider le champ « Reste à faire » de " + ids.length + " chantier(s) ?\nCette action est irréversible.")) return;
+    ids.forEach(function(id){ patchDoc("chantiers", id, {reste: ""}); });
+    renderChantiers();
+    showToast("« Reste à faire » vidé pour " + ids.length + " chantier(s)");
   });
 
   /* ---------- documents par client ---------- */
@@ -1843,18 +1872,33 @@
       return '<div class="journal-item"><span class="jdate">' + escapeHtml(j.date) + '</span><div class="jtext">' + escapeHtml(j.text) + '</div></div>';
     }).join("") : '<div class="journal-empty">Aucune note pour l\'instant.</div>';
   }
+  var FICHE_DEPTS = ["22","29","35","56","44"];
+  var FICHE_TYPES = ["Géothermie", "Forage eau", "Pompage", "Dépannage", "Autre"];
+  function attrVal(v){ return String(v == null ? "" : v).replace(/"/g, "&quot;"); }
+  function ficheLongueurCell(c){
+    if(c.type === "Géothermie"){
+      var joined = (c.sondes || []).join(", ");
+      return '<input type="text" class="field-input" placeholder="ex : 120, 150" title="Profondeurs des sondes en m, séparées par des virgules" data-fiche-sondes="1" value="' + attrVal(joined) + '">';
+    }
+    return '<input type="number" min="0" class="field-input" data-fiche-depth="1" placeholder="Profondeur en m" value="' + (c.depth || "") + '">';
+  }
   function renderFicheInfo(c){
     var grid = document.getElementById("ficheInfoGrid");
     var solde = (c.montant || 0) - (c.acompte || 0);
+    var deptOpts = FICHE_DEPTS.map(function(d){ return '<option value="' + d + '"' + (c.dept === d ? " selected" : "") + '>' + d + '</option>'; }).join("");
+    var typeOpts = FICHE_TYPES.map(function(t){ return '<option value="' + t + '"' + (c.type === t ? " selected" : "") + '>' + t + '</option>'; }).join("");
     var rows = [
-      ["Type", c.type],
-      ["Commune", c.commune + " (" + c.dept + ")"],
-      ["Mandat", c.mandat ? "Oui" : "Non"],
-      ["Date de déclaration", c.declaration || "—"],
-      ["Statut", ficheStatusLabel(statutMeta, c.forageStatut)],
-      ["Raccordement", c.raccNA ? "Sans objet" : ficheStatusLabel(statutMeta, c.raccStatut || "attente")],
-      ["Montant", eur(c.montant)],
-      ["Acompte", eur(c.acompte)],
+      ["Client", '<input type="text" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="client" value="' + attrVal(c.client) + '">'],
+      ["Commune", '<input type="text" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="commune" value="' + attrVal(c.commune) + '">'],
+      ["Département", '<select class="field-input cell-select" data-col="chantiers" data-id="' + c.id + '" data-field="dept">' + deptOpts + '</select>'],
+      ["Type", '<select class="field-input cell-select" data-fiche-type="1">' + typeOpts + '</select>'],
+      ["Longueur / sondes", ficheLongueurCell(c)],
+      ["Mandat", boolToggleHtml(c.id, "mandat", c.mandat)],
+      ["Date de déclaration", '<input type="text" class="field-input" placeholder="jj/mm/aaaa" data-col="chantiers" data-id="' + c.id + '" data-field="declaration" value="' + attrVal(c.declaration) + '">'],
+      ["Statut du forage", statusSelectHtml(c.id, "forageStatut", c.forageStatut)],
+      ["Raccordement", raccCell(c)],
+      ["Montant (€)", '<input type="number" min="0" step="1" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="montant" data-numeric="1" value="' + (c.montant || 0) + '">'],
+      ["Acompte (€)", '<input type="number" min="0" step="1" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="acompte" data-numeric="1" value="' + (c.acompte || 0) + '">'],
       ["Solde", eur(solde)],
       ["Débours", eur(deboursTotal(c))],
       ["Marge", eur((c.montant || 0) - deboursTotal(c))]
@@ -2335,7 +2379,7 @@
   function delBtnHtml(col, id){
     return '<button type="button" class="row-del-btn" data-del-col="' + col + '" data-id="' + id + '" title="Supprimer cette référence" aria-label="Supprimer cette référence">' + DEL_ICON + '</button>';
   }
-  function stockBarHtml(col, id, label, besoin, stockGuingamp, stockRennes){
+  function stockBarHtml(col, id, label, besoin, stockGuingamp, stockRennes, autoBesoin){
     var stock = (stockGuingamp || 0) + (stockRennes || 0);
     var max = Math.max(besoin, stock, 1) + 1;
     var fillPct = Math.min(stock / max, 1) * 100;
@@ -2346,13 +2390,16 @@
     if(besoin === 0 && stock === 0){ stateLabel = "n/a"; stateCls = "na"; }
     else if(ok){ stateLabel = "OK"; stateCls = "ok"; }
     else { stateLabel = "-" + (besoin - stock); stateCls = "low"; }
+    var besoinHtml = autoBesoin
+      ? '<div class="num-input field-input besoin-auto" title="Besoin calculé automatiquement à partir des chantiers en cours">' + besoin + '</div>'
+      : '<input type="number" min="0" class="num-input field-input" data-col="' + col + '" data-id="' + id + '" data-field="besoin" data-numeric="1" value="' + besoin + '" title="Besoin">';
     return '<div class="stockrow">'
       + '<div class="dia lbl-text">' + label + "</div>"
       + '<div class="bulletwrap"><div class="bulletfill" style="width:' + fillPct + '%; background:' + color + '"></div>'
       + (besoin > 0 ? '<div class="mark" style="left:' + markPct + '%"></div>' : "")
       + "</div>"
       + '<div class="stock-inputs">'
-        + '<input type="number" min="0" class="num-input field-input" data-col="' + col + '" data-id="' + id + '" data-field="besoin" data-numeric="1" value="' + besoin + '" title="Besoin">'
+        + besoinHtml
         + '<input type="number" min="0" class="num-input field-input" data-col="' + col + '" data-id="' + id + '" data-field="stockGuingamp" data-numeric="1" value="' + stockGuingamp + '" title="Stock Guingamp">'
         + '<input type="number" min="0" class="num-input field-input" data-col="' + col + '" data-id="' + id + '" data-field="stockRennes" data-numeric="1" value="' + stockRennes + '" title="Stock Rennes">'
       + "</div>"
@@ -2364,6 +2411,38 @@
     var vals = Object.keys(map).map(function(k){ return map[k].order || 0; });
     return vals.length ? (Math.max.apply(null, vals) + 1) : 0;
   }
+  /* Le besoin en sondes est calculé automatiquement à partir des chantiers Géothermie
+     dont le forage n'est pas encore terminé : chaque longueur de sonde utilisée compte
+     pour 1 dans le besoin de cette longueur-là. Une nouvelle longueur rencontrée dans
+     un chantier crée automatiquement sa ligne dans le stock. */
+  function computeSondeNeeds(){
+    var needs = {};
+    Object.keys(state.chantiers).forEach(function(cid){
+      var c = state.chantiers[cid];
+      if(c.type !== "Géothermie" || c.forageStatut === "ok") return;
+      (c.sondes || []).forEach(function(depth){
+        if(!depth) return;
+        needs[depth] = (needs[depth] || 0) + 1;
+      });
+    });
+    return needs;
+  }
+  function syncSondeNeeds(){
+    var needs = computeSondeNeeds();
+    var seenDepths = {};
+    Object.keys(state.stockSondes).forEach(function(id){
+      var s = state.stockSondes[id];
+      seenDepths[s.depth] = true;
+      var need = needs[s.depth] || 0;
+      if((s.besoin || 0) !== need){ patchDoc("stockSondes", id, {besoin: need}); }
+    });
+    Object.keys(needs).forEach(function(depthStr){
+      var depth = Number(depthStr);
+      if(seenDepths[depth]) return;
+      var newId = "sonde-" + depth + "-" + Date.now();
+      createDoc("stockSondes", newId, {depth: depth, besoin: needs[depthStr], stockGuingamp: 0, stockRennes: 0, order: nextOrder(state.stockSondes)});
+    });
+  }
   function renderStock(fromRemote){
     var sondesEl = document.getElementById("sondesList");
     var collEl = document.getElementById("collecteursList");
@@ -2371,8 +2450,9 @@
     var equipEl = document.getElementById("equipList");
     if(fromRemote && (activeElInside(sondesEl) || activeElInside(collEl) || activeElInside(diversEl) || activeElInside(equipEl))) return;
 
+    syncSondeNeeds();
     var sondes = sortedArray(state.stockSondes, function(a, b){ return a.depth - b.depth; });
-    sondesEl.innerHTML = sondes.length ? sondes.map(function(s){ return stockBarHtml("stockSondes", s.id, s.depth + " m", s.besoin, s.stockGuingamp, s.stockRennes); }).join("") : '<div class="hint">Aucune référence — ajoute une longueur ci-dessous.</div>';
+    sondesEl.innerHTML = sondes.length ? sondes.map(function(s){ return stockBarHtml("stockSondes", s.id, s.depth + " m", s.besoin, s.stockGuingamp, s.stockRennes, true); }).join("") : '<div class="hint">Aucune référence — ajoute une longueur ci-dessous.</div>';
 
     var colls = sortedArray(state.stockCollecteurs, byOrder);
     collEl.innerHTML = colls.length ? colls.map(function(c){ return stockBarHtml("stockCollecteurs", c.id, c.label, c.besoin, c.stockGuingamp, c.stockRennes); }).join("") : '<div class="hint">Aucune référence — ajoute-en une ci-dessous.</div>';
@@ -2678,14 +2758,46 @@
   }
 
   /* ================= generic field dispatch ================= */
+  function refreshOpenFiche(){
+    if(!currentFicheId) return;
+    var c = state.chantiers[currentFicheId];
+    if(!c) return;
+    document.getElementById("ficheClientName").textContent = c.client;
+    document.getElementById("ficheSubline").textContent = c.commune + " (" + c.dept + ") · " + c.type;
+    renderFicheInfo(c);
+  }
   var RENDER_MAP = {
-    chantiers: function(){ renderChantiers(); },
+    chantiers: function(){ renderChantiers(); refreshOpenFiche(); },
     planning: function(){ renderPlanning(); },
     stockSondes: function(){ renderStock(); },
     stockCollecteurs: function(){ renderStock(); },
     stockDivers: function(){ renderStock(); },
     stockEquip: function(){ renderStock(); }
   };
+  /* champs de la fiche qui ont un effet de bord (type -> raccNA, longueur -> sondes/depth)
+     et ne passent donc pas par le dispatch générique data-col/data-field */
+  document.getElementById("ficheInfoGrid").addEventListener("change", function(e){
+    var t = e.target;
+    if(!currentFicheId) return;
+    var id = currentFicheId;
+    var c = state.chantiers[id];
+    if(!c) return;
+    if(t.hasAttribute("data-fiche-type")){
+      var newType = t.value;
+      patchDoc("chantiers", id, {type: newType, raccNA: (newType !== "Géothermie")}, RENDER_MAP.chantiers);
+      return;
+    }
+    if(t.hasAttribute("data-fiche-sondes")){
+      var sondes = t.value.split(",").map(function(s){ return parseInt(s.trim(), 10); }).filter(function(n){ return !isNaN(n); });
+      patchDoc("chantiers", id, {sondes: sondes}, RENDER_MAP.chantiers);
+      return;
+    }
+    if(t.hasAttribute("data-fiche-depth")){
+      var depth = t.value ? Number(t.value) : null;
+      patchDoc("chantiers", id, {depth: depth}, RENDER_MAP.chantiers);
+      return;
+    }
+  });
   document.addEventListener("change", function(e){
     var t = e.target;
     if(!t.classList || !t.classList.contains("field-input")) return;
@@ -2952,22 +3064,27 @@
       var sondes = (type === "Géothermie" && metre) ? [metre] : [];
       var depth = (type !== "Géothermie" && metre) ? metre : null;
       var id = "imp-" + slugify(clientName + "-" + commune + "-" + montant);
-      var resteLines = [];
-      if(statutOriginal) resteLines.push("Statut du dossier (import) : " + statutOriginal);
-      if(normHeader(cell("priorite")) === "haute") resteLines.push("Priorité : Haute");
-      if(cell("demarche")) resteLines.push("Démarche / déclaration : " + cell("demarche"));
-      if(cell("reference")) resteLines.push("Référence / récépissé : " + cell("reference"));
-      if(cell("echeance")) resteLines.push("Échéance administrative : " + fmtDateFR(cell("echeance")));
-      if(ynImport(cell("planImplantation"))) resteLines.push("Plan d'implantation : fait");
-      if(cell("dateChantier")) resteLines.push("Date de chantier prévue : " + fmtDateFR(cell("dateChantier")));
-      if(ynImport(cell("rapportForage"))) resteLines.push("Rapport de forage : reçu");
-      if(ynImport(cell("pvReception"))) resteLines.push("PV de réception : reçu");
-      if(cell("facturation")) resteLines.push("Facturation : " + cell("facturation"));
-      if(cell("prochaineAction")) resteLines.push("Prochaine action : " + cell("prochaineAction"));
-      if(cell("dateRelance")) resteLines.push("Relance prévue le : " + fmtDateFR(cell("dateRelance")));
-      if(cell("lienDossier")) resteLines.push("Dossier complet : " + cell("lienDossier"));
-      if(cell("notes")) resteLines.push("Notes : " + cell("notes"));
-      if(cell("importateur")) resteLines.push("Importateur / apporteur : " + cell("importateur"));
+      // Le champ "Reste à faire" est une case sur une seule ligne dans le tableau des
+      // chantiers : on n'y met qu'une note courte et actionnable. Le détail administratif
+      // du fichier importé (statut d'origine, références, liens…) part dans le journal
+      // de suivi du chantier, qui est prévu pour du texte plus long.
+      var journalLines = [];
+      if(statutOriginal) journalLines.push("Statut du dossier (import) : " + statutOriginal);
+      if(normHeader(cell("priorite")) === "haute") journalLines.push("Priorité : Haute");
+      if(cell("demarche")) journalLines.push("Démarche / déclaration : " + cell("demarche"));
+      if(cell("reference")) journalLines.push("Référence / récépissé : " + cell("reference"));
+      if(cell("echeance")) journalLines.push("Échéance administrative : " + fmtDateFR(cell("echeance")));
+      if(ynImport(cell("planImplantation"))) journalLines.push("Plan d'implantation : fait");
+      if(cell("dateChantier")) journalLines.push("Date de chantier prévue : " + fmtDateFR(cell("dateChantier")));
+      if(ynImport(cell("rapportForage"))) journalLines.push("Rapport de forage : reçu");
+      if(ynImport(cell("pvReception"))) journalLines.push("PV de réception : reçu");
+      if(cell("facturation")) journalLines.push("Facturation : " + cell("facturation"));
+      if(cell("dateRelance")) journalLines.push("Relance prévue le : " + fmtDateFR(cell("dateRelance")));
+      if(cell("lienDossier")) journalLines.push("Dossier complet : " + cell("lienDossier"));
+      if(cell("notes")) journalLines.push("Notes : " + cell("notes"));
+      if(cell("importateur")) journalLines.push("Importateur / apporteur : " + cell("importateur"));
+      var resteCourt = cell("prochaineAction") ? String(cell("prochaineAction")).trim() : "";
+      var journalEntries = [{date: new Date().toLocaleDateString("fr-FR"), text: "Dossier importé depuis le tableau de suivi." + (journalLines.length ? ("\n" + journalLines.join("\n")) : "")}];
       var data = {
         client: clientName, telephone: "", email: "", adresse: "",
         commune: commune, dept: guessDept(commune),
@@ -2978,7 +3095,7 @@
         forageStatut: statutInfo.forageStatut,
         raccNA: (type !== "Géothermie"),
         raccStatut: null,
-        reste: resteLines.join("\n"),
+        reste: resteCourt,
         planifier: ynImport(cell("bonAPlanifier")),
         dict: ynImport(cell("dtdict")),
         ppsps: ynImport(cell("ppsps")),
@@ -2987,7 +3104,7 @@
         suivi: cell("responsable") ? String(cell("responsable")).trim() : "",
         responsable: "",
         docs: [],
-        journal: [{date: new Date().toLocaleDateString("fr-FR"), text: "Dossier importé automatiquement depuis le tableau de suivi."}],
+        journal: journalEntries,
         debours: [],
         order: existingOrder + 1 + results.length
       };
