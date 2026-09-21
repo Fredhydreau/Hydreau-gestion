@@ -1038,6 +1038,7 @@
       </div>
       <div class="fiche-section" id="ficheSondesSection">
         <h4>Sondes géothermiques</h4>
+        <p class="hint" style="margin:-4px 0 10px;">Sert uniquement à calculer le besoin en stock. N'affecte pas la « Longueur totale » du chantier, saisie librement ci-dessus.</p>
         <div class="debours-add">
           <input type="number" id="sondeQteInput" class="field-input" placeholder="Nombre de sondes" min="1" step="1" style="flex:1;">
           <input type="number" id="sondeLongueurInput" class="field-input" placeholder="Longueur (m)" min="1" step="1" style="flex:1;">
@@ -1537,9 +1538,11 @@
 
   /* ================= CHANTIERS ================= */
   function totalLongueur(c){
-    if(c.type === "Géothermie" && c.sondes && c.sondes.length){ return c.sondes.reduce(function(s, v){ return s + v; }, 0); }
-    if((c.type === "Forage eau" || c.type === "Autre") && c.depth){ return c.depth; }
-    return 0;
+    // Longueur totale du chantier : saisie manuelle (indépendante du détail des sondes, qui ne sert qu'au stock)
+    return c.depth || 0;
+  }
+  function sondesGroupsLongueur(c){
+    return (c.type === "Géothermie" && c.sondes && c.sondes.length) ? c.sondes.reduce(function(s, v){ return s + v; }, 0) : 0;
   }
   function nbSondes(c){
     return (c.type === "Géothermie" && c.sondes) ? c.sondes.length : 0;
@@ -1547,8 +1550,7 @@
   function totalLongueurCell(c){
     var v = totalLongueur(c);
     var label = v ? ('<span class="mono">' + v + '&nbsp;m</span>') : '<span class="phase-na">—</span>';
-    var scrollAttr = c.type === "Géothermie" ? ' data-fiche-scroll="sondes"' : '';
-    return '<button type="button" class="cell-link" data-fiche-id="' + c.id + '"' + scrollAttr + ' title="Modifier dans la fiche">' + label + '</button>';
+    return '<button type="button" class="cell-link" data-fiche-id="' + c.id + '" title="Modifier dans la fiche">' + label + '</button>';
   }
   function nbSondesCell(c){
     if(c.type !== "Géothermie") return '<span class="phase-na">—</span>';
@@ -1653,10 +1655,7 @@
     var all = sortedArray(state.chantiers, byOrder);
     var count = all.length;
     var totalDepth = 0;
-    all.forEach(function(c){
-      if(c.type === "Forage eau" && c.depth) totalDepth += c.depth;
-      if(c.sondes && c.sondes.length) totalDepth += c.sondes.reduce(function(s, v){ return s + v; }, 0);
-    });
+    all.forEach(function(c){ totalDepth += totalLongueur(c); });
     var montant = all.reduce(function(s, c){ return s + (c.montant || 0); }, 0);
     var acompte = all.reduce(function(s, c){ return s + (c.acompte || 0); }, 0);
     var solde = montant - acompte;
@@ -1892,10 +1891,8 @@
   var FICHE_TYPES = ["Géothermie", "Forage eau", "Pompage", "Dépannage", "Autre"];
   function attrVal(v){ return String(v == null ? "" : v).replace(/"/g, "&quot;"); }
   function ficheLongueurCell(c){
-    if(c.type === "Géothermie"){
-      return totalLongueur(c) ? (totalLongueur(c) + " m — " + nbSondes(c) + " sonde" + (nbSondes(c) > 1 ? "s" : "") + " (voir ci-dessous)") : "à définir ci-dessous";
-    }
-    return '<input type="number" min="0" class="field-input" data-fiche-depth="1" placeholder="Profondeur en m" value="' + (c.depth || "") + '">';
+    // Champ saisi librement par l'utilisateur : indépendant du détail des sondes (qui ne sert qu'au calcul du stock)
+    return '<input type="number" min="0" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="depth" data-numeric="1" placeholder="Longueur totale en m" value="' + (c.depth || "") + '">';
   }
   function renderFicheInfo(c){
     var grid = document.getElementById("ficheInfoGrid");
@@ -1959,7 +1956,7 @@
         + '<button type="button" class="ddel" data-sonde-depth="' + g.depth + '" title="Supprimer ce groupe de sondes" aria-label="Supprimer ce groupe de sondes">'
         + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>';
     }).join("") : '<div class="debours-empty">Aucune sonde renseignée pour l\'instant.</div>';
-    if(totalEl) totalEl.textContent = "Total : " + totalLongueur(c) + " m — " + nbSondes(c) + " sonde" + (nbSondes(c) > 1 ? "s" : "");
+    if(totalEl) totalEl.textContent = "Total sondes : " + sondesGroupsLongueur(c) + " m — " + nbSondes(c) + " sonde" + (nbSondes(c) > 1 ? "s" : "") + " (pour le stock uniquement)";
   }
   function openFiche(id, opts){
     var c = state.chantiers[id];
@@ -2646,8 +2643,8 @@
 
     var depthGeo = 0, depthEau = 0;
     chantiers.forEach(function(c){
-      if(c.type === "Géothermie" && c.sondes && c.sondes.length){ depthGeo += c.sondes.reduce(function(s, v){ return s + v; }, 0); }
-      if(c.type === "Forage eau" && c.depth){ depthEau += c.depth; }
+      if(c.type === "Géothermie"){ depthGeo += totalLongueur(c); }
+      if(c.type === "Forage eau"){ depthEau += totalLongueur(c); }
     });
     var depthTotal = depthGeo + depthEau;
     setText("dashMetres", depthTotal.toLocaleString("fr-FR") + " m");
@@ -2793,9 +2790,7 @@
     return Object.keys(ids);
   }
   function metresForChantier(c){
-    if(c.type === "Géothermie" && c.sondes && c.sondes.length){ return c.sondes.reduce(function(s, v){ return s + v; }, 0); }
-    if(c.type === "Forage eau" && c.depth){ return c.depth; }
-    return 0;
+    return totalLongueur(c);
   }
   function teamDotHtml(color){
     return '<span style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; background:' + color + '"></span>';
@@ -2863,8 +2858,8 @@
     stockDivers: function(){ renderStock(); },
     stockEquip: function(){ renderStock(); }
   };
-  /* champs de la fiche qui ont un effet de bord (type -> raccNA, longueur -> sondes/depth)
-     et ne passent donc pas par le dispatch générique data-col/data-field */
+  /* champ de la fiche qui a un effet de bord (type -> raccNA) et ne passe donc pas
+     par le dispatch générique data-col/data-field */
   document.getElementById("ficheInfoGrid").addEventListener("change", function(e){
     var t = e.target;
     if(!currentFicheId) return;
@@ -2874,11 +2869,6 @@
     if(t.hasAttribute("data-fiche-type")){
       var newType = t.value;
       patchDoc("chantiers", id, {type: newType, raccNA: (newType !== "Géothermie")}, RENDER_MAP.chantiers);
-      return;
-    }
-    if(t.hasAttribute("data-fiche-depth")){
-      var depth = t.value ? Number(t.value) : null;
-      patchDoc("chantiers", id, {depth: depth}, RENDER_MAP.chantiers);
       return;
     }
   });
