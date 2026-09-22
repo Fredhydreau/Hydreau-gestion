@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Suivi Parc Hydreau</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+:root{
+  --bg:#eceff1;--panel:#ffffff;--ink:#15232e;--mute:#5b6b77;--line:#d5dce1;--zebra:#f5f7f8;
+  --accent:#0b5a8e;--accent-ink:#ffffff;--head:#0c3a5b;--head-ink:#ffffff;
+  --ok:#23794f;--okbg:#e2f3ea;--warn:#7a4f00;--warnbg:#fdf0cf;--bad:#b3261e;--badbg:#fbe1de;--unk:#5b6b77;--unkbg:#e6eaed;
+  --font:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;--disp:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f171d;--panel:#17232c;--ink:#e6edf1;--mute:#93a4b0;--line:#2a3a46;--zebra:#1b2a34;
+  --accent:#5cb0e6;--accent-ink:#06202f;--head:#0a2436;--head-ink:#e6edf1;
+  --ok:#5fcf97;--okbg:#12352a;--warn:#f0c15a;--warnbg:#3a2f10;--bad:#ff8a80;--badbg:#40191a;--unk:#93a4b0;--unkbg:#22313b;}}
+:root[data-theme="dark"]{
+  --bg:#0f171d;--panel:#17232c;--ink:#e6edf1;--mute:#93a4b0;--line:#2a3a46;--zebra:#1b2a34;
+  --accent:#5cb0e6;--accent-ink:#06202f;--head:#0a2436;--head-ink:#e6edf1;
+  --ok:#5fcf97;--okbg:#12352a;--warn:#f0c15a;--warnbg:#3a2f10;--bad:#ff8a80;--badbg:#40191a;--unk:#93a4b0;--unkbg:#22313b;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.4}
+button,input,select,textarea{font:inherit;color:inherit}
+.top{background:var(--head);color:var(--head-ink);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.top-in{max-width:1180px;margin:0 auto;padding:10px 16px 0;display:flex;flex-direction:column;gap:6px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{font-family:var(--disp);font-weight:700;font-size:24px;letter-spacing:.04em;text-transform:uppercase;margin:0}
+.sync{font-size:12px;opacity:.75;margin-left:auto}
+.tools{display:flex;gap:6px}
+.parcs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0 4px}
+.parcs button{border:1px solid rgba(255,255,255,.4);background:transparent;color:var(--head-ink);border-radius:99px;padding:3px 13px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.parcs button[aria-pressed="true"]{background:var(--head-ink);color:var(--head);border-color:var(--head-ink)}
+.parcs button:hover{border-color:var(--head-ink)}
+nav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav button{background:none;border:0;border-bottom:3px solid transparent;color:var(--head-ink);opacity:.72;padding:8px 12px;font-family:var(--disp);font-weight:600;font-size:16px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+nav button[aria-current="page"]{opacity:1;border-bottom-color:#5cb0e6}
+nav button:hover{opacity:1}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 60px;display:flex;flex-direction:column;gap:18px}
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:6px 12px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.sm{padding:3px 9px;font-size:13px}
+.top .btn{background:transparent;color:var(--head-ink);border-color:rgba(255,255,255,.35);font-size:13px;padding:3px 9px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.blk{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.blk>header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.blk>header h2{font-family:var(--disp);font-size:19px;letter-spacing:.04em;text-transform:uppercase;margin:0;font-weight:700}
+.blk>header .sp{flex:1}
+.pad{padding:14px 16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 14px}
+.kpi b{display:block;font-family:var(--disp);font-size:34px;line-height:1.05;font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--mute)}
+.kpi.late b{color:var(--bad)}.kpi.soon b{color:var(--warn)}
+.pill{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.late{background:var(--badbg);color:var(--bad)}.pill.soon{background:var(--warnbg);color:var(--warn)}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.unk,.pill.info{background:var(--unkbg);color:var(--unk)}
+.pill.ex{background:var(--unkbg);color:var(--mute);font-weight:500}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-family:var(--disp);font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:13px;text-align:left;color:var(--mute);padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:nth-child(even){background:var(--zebra)}
+tr.clk{cursor:pointer}tr.clk:hover{background:var(--zebra);outline:1px solid var(--accent);outline-offset:-1px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.s-late td:first-child{box-shadow:inset 4px 0 0 var(--bad)}tr.s-soon td:first-child{box-shadow:inset 4px 0 0 var(--warn)}
+.mute{color:var(--mute)}.small{font-size:13px}
+.todo{list-style:none;margin:0;padding:0}
+.todo li{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.todo li:last-child{border-bottom:0}.todo li:hover{background:var(--zebra)}
+.todo .w{flex:1;min-width:0}.todo .w b{font-weight:600}
+.gauge{height:8px;background:var(--unkbg);border-radius:4px;overflow:hidden;min-width:90px}
+.gauge i{display:block;height:100%;background:var(--ok)}.gauge i.soon{background:var(--warn)}.gauge i.late{background:var(--bad)}
+.plans{display:grid;grid-template-columns:minmax(150px,1.2fr) minmax(110px,1fr) minmax(130px,1fr) auto auto;gap:8px 14px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.plans:last-child{border-bottom:0}
+.acts{display:flex;gap:6px}
+@media (max-width:640px){.plans{grid-template-columns:1fr 1fr}.plans .acts{grid-column:1/-1}}
+.bars{display:grid;gap:9px}
+.bar{display:grid;grid-template-columns:minmax(120px,220px) 1fr auto;gap:12px;align-items:center;font-size:14px}
+.bar .t{height:14px;background:var(--unkbg);border-radius:3px}.bar .t i{display:block;height:100%;background:var(--accent);border-radius:3px}
+@media (max-width:640px){.bar{grid-template-columns:1fr auto}.bar .t{grid-column:1/-1;order:3}}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px}
+.kv div span{display:block;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,input[type=text],input[type=number],input[type=date],textarea{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:6px 9px;width:100%}
+.filters select{width:auto}
+.empty{padding:22px 16px;color:var(--mute);text-align:center}
+.note{background:var(--warnbg);color:var(--warn);border-radius:6px;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.note span{flex:1;min-width:220px}
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:0;width:min(560px,calc(100vw - 24px));max-height:calc(100% - 24px)}
+dialog::backdrop{background:rgba(5,15,22,.55)}
+dialog form{padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+dialog h2{font-family:var(--disp);text-transform:uppercase;letter-spacing:.04em;font-size:21px;margin:0}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.fg .w{grid-column:1/-1}
+@media (max-width:520px){.fg{grid-template-columns:1fr}}
+.fg label{display:block;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.fg .chk{display:flex;gap:8px;align-items:center;text-transform:none;font-size:15px;color:var(--ink);letter-spacing:0;padding-top:20px}
+.fg .chk input{width:auto}
+.fa{display:flex;gap:8px;flex-wrap:wrap}.fa .sp{flex:1}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;z-index:20;max-width:90vw}
+.wk input{min-width:90px}
+.crumb{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.crumb h2{font-family:var(--disp);font-size:30px;text-transform:uppercase;letter-spacing:.03em;margin:0}
+@media (prefers-reduced-motion:no-preference){.gauge i{transition:width .3s}}
+#gate{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
+#gate .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:28px 26px;width:min(360px,100%);display:flex;flex-direction:column;gap:14px}
+#gate h1{font-family:var(--disp);text-transform:uppercase;letter-spacing:.04em;font-size:22px;margin:0}
+#gate p{margin:0;color:var(--mute);font-size:14px}
+#gate .err{color:var(--bad);font-size:13px;min-height:1.2em}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div id="gate">
+  <form class="card" id="gateform">
+    <h1>Suivi du parc</h1>
+    <p>Application réservée à Hydreau Forage. Entrez le mot de passe pour continuer.</p>
+    <div><label for="gp" style="display:block;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Mot de passe</label><input type="password" id="gp" autocomplete="current-password" required></div>
+    <div class="err" id="gerr" role="alert"></div>
+    <button class="btn pri" type="submit">Entrer</button>
+  </form>
+</div>
+<div class="top"><div class="top-in">
+  <div class="brand"><h1>Suivi du parc</h1><span class="mute small" style="color:inherit;opacity:.7">Hydreau Forage</span>
+    <div class="tools sync"><span id="sync"></span><button class="btn" data-a="export">Exporter</button><button class="btn" data-a="csv">CSV travaux</button><button class="btn" data-a="import">Importer</button><input type="file" id="file" accept=".json,application/json" hidden><button class="btn" data-a="logout">Déconnecter</button></div></div>
+  <div class="parcs" id="parcs" role="group" aria-label="Parc"></div>
+  <nav id="nav"></nav>
+</div></div>
+<main id="main"></main>
+<dialog id="dlg"></dialog>
+<div id="toast" hidden></div>
+
+<script>
+const LS='hydreau-parc-v1';
+const AUTH_KEY='hydreau-parc-auth',AUTH_HASH='31ba535cc957b9c4525fff1c170ebb6a35cfd357843f077ca9a6dd2cedcc5010';
+async function sha256(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const TYPES=['Minipelle','Pelle','Foreuse','Camion','Utilitaire','Benne','Véhicule léger','Remorque','Compresseur','Groupe électrogène',"Machine d'injection",'Dumper','Engin','Autre'];
+const TT={entretien:'Entretien',panne:'Panne / réparation',reglementaire:'Contrôle réglementaire',autre:'Autre'};
+const ST={late:'En retard',soon:'À prévoir',ok:'OK',unk:'Sans échéance',info:'À relever'};
+const RANK={late:3,soon:2,ok:1,unk:0,info:0};
+const uid=()=>Math.random().toString(36).slice(2,9);
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=new Date().toISOString().slice(0,10);
+const fd=iso=>iso?iso.split('-').reverse().join('/'):'—';
+const nf=n=>n==null?'—':Number(n).toLocaleString('fr-FR',{maximumFractionDigits:1});
+const hh=n=>n==null?'—':nf(n)+' h';
+const U=m=>m?.unite||'h';
+const cv=(m,n)=>n==null?'—':nf(n)+' '+U(m);
+const eur=n=>n==null?'—':Number(n).toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+function addMonths(iso,n){const d=new Date(iso+'T12:00:00');d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10)}
+function addDays(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)}
+const daysTo=iso=>Math.round((new Date(iso+'T12:00:00')-new Date(today+'T12:00:00'))/864e5);
+
+/* ---------- Données de départ (issues du fichier « matériel de rac. ») ---------- */
+function seed(){
+  const m=(o)=>Object.assign({id:uid(),parc:'raccordement',type:'Engin',marque:'',modele:'',serie:'',service:'',heures:null,refHuile:'',refHydro:'',refGasoil:'',refAir:'',refAutres:''},o);
+  const tk=m({nom:'Minipelle Tackeuchi TB225',type:'Minipelle',marque:'Tackeuchi',modele:'TB225',heures:1550});
+  const ya=m({nom:'Minipelle Yanmar Vio27',type:'Minipelle',marque:'Yanmar',modele:'Vio27',heures:480});
+  const au=m({nom:'Ausa',type:'Engin',marque:'Ausa'});
+  const ly=m({nom:'Machine injection Lancy PH9',type:"Machine d'injection",marque:'Lancy',modele:'PH9'});
+  const ge=m({nom:'Machine injection Gertec IS-38-E',type:"Machine d'injection",marque:'Gertec',modele:'IS-38-E'});
+  const sd=m({nom:'Groupe électrogène SDMO T44C3',type:'Groupe électrogène',marque:'SDMO',modele:'T44C3',heures:7219});
+  const P=(mid,label,intervalH,nextH)=>({id:uid(),mid,label,intervalH,nextH,alertH:50});
+  const T=(mid,date,heures,description,fournisseur,cout,duree,lieu,type)=>({id:uid(),mid,type:type||'entretien',date,heures,description,fournisseur:fournisseur||'',cout:cout??null,duree:duree??null,lieu:lieu||''});
+  return {v:1,
+    machines:[tk,ya,au,ly,ge,sd],
+    plans:[P(tk.id,'Vidange moteur',250,1600),P(tk.id,'Vidange hydraulique',500,1600),P(tk.id,'Révision globale',1000,1600),
+           P(ya.id,'Vidange moteur',250,750),P(ya.id,'Vidange hydraulique',500,750),P(ya.id,'Révision globale',1000,750),
+           P(sd.id,'Vidange + tous filtres',250,7300)],
+    travaux:[
+      T(tk.id,'2026-01-30',1320,'Vidange, révision, changement vitre arrière','Lem équipement',1798,3,'Pestant'),
+      T(tk.id,'2025-03-26',1020,'Vidange, filtre air et hydraulique translation','Joss',284,1,'Atelier'),
+      T(tk.id,'2024-10-08',850,'Vidange, filtre gasoil','Joss',196,1,'Atelier'),
+      T(tk.id,'2024-01-18',494,'Vidange, filtre gasoil','Joss',196,1,'Atelier'),
+      T(tk.id,'2023-07-01',250,'Vidange, filtre gasoil','Joss',196,1,'Atelier'),
+      T(ya.id,'2026-09-01',470,'Vidange, tous filtres (09/2026)','Locarmor',null,null,'Guingamp'),
+      T(ya.id,'',330,'Filtre air, gasoil, axe porte et fenêtre','',null,null,''),
+      T(ya.id,'',54,'Vidange, filtre','Locarmor',null,null,''),
+      T(sd.id,'2024-05-21',7038,'Vidange, tous filtres','',null,null,''),
+      T(ly.id,'',null,'Révision pale de malaxage et axe réducteur, envoyées chez Elmat (Plérin)','Elmat',null,null,'Plérin','panne')],
+    releves:[{id:uid(),mid:tk.id,date:'2026-08-30',heures:1550,conso:null,verif:false,obs:'Prévoir vidange'}],
+    controles:[
+      {id:uid(),mid:tk.id,libelle:'Vérification générale périodique (VGP)',echeance:addDays(today,21),periodeMois:12,derniere:'',note:'Exemple à adapter',ex:true},
+      {id:uid(),mid:sd.id,libelle:'Assurance',echeance:addDays(today,190),periodeMois:12,derniere:'',note:'Exemple à adapter',ex:true}],
+    stock:[['Filtre à huile'],['Filtre hydraulique'],['Filtre gasoil'],['Filtre à air']].map(([d])=>({id:uid(),designation:d,ref:'',mid:tk.id,qte:0,mini:0,prix:null,fournisseur:''})),
+    intro:true};
+}
+const PACK='flotte-2026-09';
+function norm(d){
+  for(const k of ['machines','plans','travaux','releves','controles','stock'])if(!Array.isArray(d[k]))d[k]=[];
+  if(!(d.packs||[]).includes(PACK)){addPack(d);d.packs=(d.packs||[]).concat(PACK);d.controles=d.controles.filter(c=>!c.ex);d.intro=true;didMigrate=true}
+  for(const m of d.machines)if(!m.parc){m.parc=/^(Foreuse|Compresseur)$/.test(m.type)?'production':/^(Camion|Utilitaire|Benne|Véhicule léger|Remorque)$/.test(m.type)?'transport':'raccordement';didMigrate=true}
+  return d;
+}
+/* Données reprises des fichiers « foreuse comp » et « Veh Transport » (identifiants fixes p2-*) */
+function addPack(d){
+  let n=0;const id=()=>'p2-'+(++n);
+  const mk=o=>{const m={id:id(),type:'Engin',unite:'h',marque:'',modele:'',serie:'',service:'',heures:null,immat:'',chauffeur:'',aPrevoir:'',refHuile:'',refHydro:'',refGasoil:'',refAir:'',refAutres:'',...o};d.machines.push(m);return m};
+  const wk=(m,date,h,desc,cout,four,lieu,ty)=>d.travaux.push({id:id(),mid:m.id,type:ty||'panne',date,heures:h,description:desc,fournisseur:four||'',cout:cout??null,duree:null,lieu:lieu||''});
+  const vwk=(m,date,raw,cout,four)=>{
+    let h=null,t=(raw||'').trim();const mt=t.match(/^(\d{4,7})\s*(?:km)?\.?\s*(.*)$/i);
+    if(mt){h=+mt[1];t=mt[2]}
+    t=t.replace(/\s+/g,' ').trim();t=t?t[0].toUpperCase()+t.slice(1):'Entretien (détail non renseigné)';
+    const ty=/contr[oô]le technique/i.test(t)?'reglementaire':/carr?osserie|embrayage|batterie|par brise|durite|injecteur|diag|feux|r[eé]troviseur|[eé]metteur|ad blue/i.test(t)?'panne':'entretien';
+    wk(m,date,h,t,cout,four,'',ty);
+  };
+  const veh=(nom,type,immat,chauf,km,kmDate,o={})=>{
+    const m=mk({nom,type,unite:'km',immat,chauffeur:chauf,heures:km,aPrevoir:o.ap||''});
+    if(km!=null&&kmDate)d.releves.push({id:id(),mid:m.id,date:kmDate,heures:km,conso:null,verif:false,obs:''});
+    if(o.next)d.plans.push({id:id(),mid:m.id,label:'Vidange',intervalH:null,nextH:o.next,alertH:3000});
+    if(o.ct)d.controles.push({id:id(),mid:m.id,libelle:o.ctLabel||'Contrôle technique',echeance:o.ct,periodeMois:o.ctP||24,derniere:'',note:''});
+    if(o.pol)d.controles.push({id:id(),mid:m.id,libelle:'Contrôle pollution',echeance:o.pol,periodeMois:12,derniere:'',note:''});
+    for(const w of o.w||[])vwk(m,...w);
+    return m;
+  };
+  const dr=(nom,type,h,o={})=>{
+    const m=mk({nom,type,heures:h,...(o.refs||{})});
+    for(const [l,nx] of o.plans||[])d.plans.push({id:id(),mid:m.id,label:l,intervalH:null,nextH:nx,alertH:50});
+    for(const w of o.w||[])wk(m,...w);
+    for(const r of o.rel||[])d.releves.push({id:id(),mid:m.id,date:r[0],heures:r[1],conso:null,verif:false,obs:r[2]||''});
+    return m;
+  };
+  const GC='Garage du centre',GS='Garage sarrazin',GA='Garage de l’armor',OF='Ouest flexible',EC='Écofore',JO='Joss',E='entretien';
+  const P3=(a,b,c)=>[['Vidange moteur',a],['Vidange hydraulique',b],['Révision globale',c]];
+  const K='2026-08-28';
+
+  /* ----- Foreuses et compresseurs ----- */
+  dr('Massenza','Foreuse',1470,{refs:{refAir:'Hifi-filter SA 16460'},plans:P3(2000,2000,2000),
+    rel:[['2026-09-13',null,'Fuite tête']],
+    w:[['2026-09-13',null,'Réparation joint (fuite tête)',null,'Stock'],['2026-09-13',null,'Main d’œuvre (1 journée)',null,'MAJTPP'],
+       ['2026-04-16',null,'Flexible',425,OF],['2026-04-09',null,'Flexible',176,OF],['2026-01-13',null,'Flexible',4659,OF],['2025-06-25',1470,'Injection',8763,'Chapalin','Matignon']]});
+  dr('Stenuick','Foreuse',1100,{plans:P3(null,null,2000),w:[
+    ['2026-03-27',null,'Kit joint',152,'Stenuick'],['2026-03-23',null,'Flexible',130,OF],['2026-03-13',null,'Palier galet',978,'Stenuick'],['2026-02-27',null,'Vérin effacement tête',1894,'Stenuick'],
+    ['2026-01-29',null,'Guide',3973,'Stenuick'],['2026-01-29',null,'Anneaux de guidage',1487,'Stenuick'],['2025-12-16',null,'Patin de mors',1222,'Stenuick'],['2025-08-25',null,'Flexible',116,OF],
+    ['2025-06-27',null,'Flexible',146,OF],['2025-06-27',null,'Réduction guide goupille',711,'Stenuick'],['2025-02-27',null,'Vérin',1134,'Stenuick'],['2025-01-17',null,'Patin de mors',1222,'Stenuick'],
+    ['2024-12-26',null,'Chaîne',4482,'Stenuick'],['2024-10-31',null,'Guide à volet',1322,'Stenuick'],['2024-09-30',null,'Presse-étoupe',344,'Stenuick'],['2024-07-30',null,'Réduction goupille',924,'Stenuick'],
+    ['2024-02-16',null,'Guide goupille',1743,'Stenuick'],['2024-01-24',null,'Guide supérieur',1786,'Stenuick'],['2023-11-30',null,'Palier translation',678,'Stenuick'],
+    ['2023-10-26',null,'Patin de mors, réduction guide, kit joint',1641,'Stenuick'],['2023-09-15',null,'Joint',38,'Stenuick'],['2023-08-31',null,'Déviateur',444,'Stenuick'],['2023-07-20',null,'Réduction goupille',671,'Stenuick'],
+    ['2023-05-30',1100,'Vidange, filtres',800,JO,'',E],['2023-05-15',null,'Mano et séparateur',104,'Stenuick'],['2023-04-14',null,'Mano',57,'Stenuick'],['2023-03-30',null,'Galet chariot',460,'Stenuick'],
+    ['2023-03-30',null,'Guide à volet, raccords',1288,'Stenuick'],['2023-02-14',null,'Guide goupille',344,'Stenuick'],['2023-02-10',600,'Vidange, filtres',482,'Stenuick','',E],
+    ['2022-12-16',null,'Cartouche absolu',231,'Stenuick','',E],['2022-11-16',null,'Filtre gasoil',181,'Stenuick','',E],['2022-10-14',null,'Raccords',373,'Stenuick'],['2022-07-29',null,'Réduction guide',471,'Stenuick']]});
+  dr('403','Foreuse',2412,{plans:P3(null,null,null),w:[
+    ['2026-03-22',null,'Flexible',7451,OF],['2026-03-17',null,'Flexible',154,OF],['2026-02-27',2412,'Réfection tête',10287,EC],['2026-02-27',2412,'Vidange moteur',500,JO,'',E],
+    ['2025-12-05',null,'Vérin de rotation mors et table',530,EC],['2025-06-16',1944,'Vidange moteur',500,JO,'',E],['2025-05-16',null,'Flexible',877,OF],['2025-03-19',null,'Vérin et kit joint',2403,EC],
+    ['2024-09-16',null,'Filtre',363,EC,'',E],['2024-06-13',null,'Plaquette de mors',953,EC],['2024-03-29',null,'Chaîne porte-flexible',4732,EC],['2024-03-06',null,'1/2 coquille hexagone',2365,EC],
+    ['2024-02-07',1200,'Vidange FH, FGO, joint, vérin clef, jeu tête',1452,JO,'',E],['2023-12-31',448,'Révision des 1000 h',1067,EC,'',E],['2023-10-03',null,'Glissière',340,EC],['2023-08-28',83,'Vidange, filtres (83 h)',null,'','',E]]});
+  dr('603','Foreuse',2987,{plans:P3(null,null,null),
+    refs:{refHuile:'Filtre à huile /40. 40065302',refGasoil:'Préfiltre carb. Ex 50317000 50695800 · Filtre carb. mont. ext /50345700',refAir:'Filtre à air 2.3 4LM31/40. 00952901',refAutres:'Fournisseur des filtres : Penouest'},
+    rel:[['2026-08-30',2900,'Vacances'],['2026-09-13',2987,'Plus de compression']],
+    w:[['2026-09-13',2987,'Passage Penouest sur chantier',null,'Penouest'],['2026-08-30',2900,'Réparation tête (pièces)',8695.8,EC],['2026-08-30',2900,'Main d’œuvre réparation tête',1728.34,'MATPPJ','Rennes'],
+       ['2026-03-31',null,'Plaquette de mors',953,EC],['2026-03-24',null,'Changement de moteur',10000,'Penouest'],['2026-02-27',null,'Glissière et bobine',644,EC],['2026-01-31',null,'Réfection tête',5715,EC],
+       ['2026-01-16',null,'Flexible',875,OF],['2025-12-15',null,'Flexible',466,OF],['2025-12-04',null,'Flexible',556,OF],['2025-11-21',null,'Sortie de tête',643,EC],['2025-09-30',null,'Volet de mors, axe',756,EC],
+       ['2025-07-31',null,'Réfection tête',4457,EC],['2024-05-30',1791,'Panne électrique',530,EC],['2023-12-05',null,'Sortie de tête',455,EC],['2023-11-17',null,'Électrovanne sortie de tête',1172,EC],
+       ['2023-10-05',null,'Démarreur',628,EC],['2023-09-04',null,'Hexagone mâle/femelle',5821,EC],['2023-07-17',null,'Roulement',1600,EC],['2023-07-06',1196,'Vidange, filtre, joint tête',null,'','',E],
+       ['2023-06-12',null,'Tête de rotation',5236,EC],['2022-03-31',null,'Hexagone mâle/femelle',5161,EC],['2022-02-28',null,'Poulie inférieure',722,EC],['2021-12-31',null,'Tête de rotation',2796,EC],
+       ['2021-05-25',null,'Hexagone mâle/femelle',4805,EC],['2021-03-09',null,'Tête injection PM',1117,EC]]});
+  dr('Compresseur V28 M','Compresseur',null,{plans:P3(2000,2000,2000),rel:[['2026-08-30',null,'Entretien vacances']],w:[['2026-08-30',null,'Réparation fuite moteur (sous garantie)',null,'Poulain','Orne']]});
+  dr('Compresseur V28 E','Compresseur',null,{plans:P3(2000,2000,2000)});
+  dr('Compresseur 476','Compresseur',8047,{plans:P3(null,null,null),w:[['2023-12-12',8047,'Vidange moteur, filtres',null,'','',E]]});
+
+  /* ----- Véhicules et remorques ----- */
+  veh('Renault B','Utilitaire','FZ-423-QR','Benjamin',135157,K,{ct:'2027-04-04',pol:'2026-04-04',w:[
+    ['2026-01-21','Vidange filtre pneu'],['2025-05-23','Frein ar'],['2024-07-11','62000 km vidange frein av ar pneu parra',1375,GC],['2023-06-03','30600 km frein av ar'],['2023-02-18','21600 KM vidange filtre',398,GC]]});
+  veh('Renault S','Utilitaire','GF-842-RY','Serge',151700,K,{next:160000,ct:'2028-03-06',pol:'2027-03-06',w:[
+    ['2026-02-28','140313 KM carosserie',5231,GA],['2025-09-22','121200 KM vidange tout filtres',756,GA],['2024-09-03','90900 km frein durite turbo',248,GC],['2024-05-04','80800 km vidange filtre frein av ar pneu av parra',1044,GC],
+    ['2023-06-03','41400 km frein av ar',256,GC],['2023-03-04','33300 km vidange filtre',226,GC]]});
+  veh('Renault L','Utilitaire','GF-454-RY','Laurent',161675,K,{next:170000,ct:'2028-02-26',pol:'2027-02-26',w:[
+    ['2026-02-27','144000 Carosserie',875,GS],['2026-02-27','144000 Carosserie',851,GS],['2026-02-27','144000 km carosserie',227,GS],['2026-02-27','144000 contrôle technique',76,GS],['2026-02-27','144000 km carrosserie',477,GS],
+    ['2026-02-27','144000 km vidange filtre',406,GS],['2025-10-09','130500 KM. frein av rétroviseur',1453,GS],['2025-09-24','129000 km frein ar',158,GS],['2025-02-25','103500 km vidange filtre frein av',426,''],
+    ['2024-11-19','90800 km frein ar',934,'Garage le nid'],['2024-04-11','71700 km vidange frein av ar',382,'Bretagne pièces auto 35'],['2023-07-07','43300 km vidange frein av ar pneu',982,GC]]});
+  veh('Renault Flo','Utilitaire','EY-897-ZA','Florian',189500,K,{ct:'2027-11-20',pol:'2026-11-20',w:[['2025-11-23','164200 km vidange pneu',864,GC],['2024-12-04','147000 frein av ar',296,GS]]});
+  veh('Renault Benne','Benne','FX-655-CB','Guillaume',145065,K,{next:160000,w:[
+    ['2026-07-21','140800 km vidange filtre frein et pneu ar',1074,GC],['2025-10-10','115000 km vidange filtre frein av',300,JO],['2024-10-10','94700 km vidange filtre frein ar',300,JO],['2024-01-10','64700 km vidange filtre frein ar',300,JO],
+    ['2023-05-31','42600 km pneus frein ar',580,GC],['2023-02-27','23400 km vidange filtre',398,GC]]});
+  veh('Nissan benne','Benne','GJ-638-JM','Fabien',137300,K,{next:156000,ct:'2026-09-19',pol:'2027-09-19',w:[
+    ['2026-09-02','Contrôle technique et pare-brise, contre-visite, feux de plaque, etc.'],['2026-04-30','126625 KM. Vidange tout filtre frein ar pneu av',604,GS],['2026-03-05','110000 km pneu',121,GS],
+    ['2025-12-05','108000 km émetteur embrayage',250,GS],['2025-10-24','102700 km embrayage',2171,GS],['2025-04-28','85000 km vidange frein av ar',1345,GS],['2025-02-05','77600 km batterie',311,GS],
+    ['2024-05-25','41700 km vidange pneu parra',925,GC],['2023-11-25','26500 km pneu av',246,GC],['2023-09-10','22000 km vidange filtre',249,GC]]});
+  veh('C3','Véhicule léger','BY-293-YP','Dépôt',2277786,K,{ct:'2028-05-31'});
+  veh('Expert','Utilitaire','FY-249-VT','Dépôt',192600,K,{ct:'2026-12-22',w:[
+    ['2026-06-01','Diag',687,'Fiat Guingamp'],['2025-11-12','161000 km ad blue',242,''],['','155000 km injecteur ad blue',280,''],['2025-06-26','144000 km vidange pneu frein av distribution',2479,GC],
+    ['2024-10-08','118800 km vidange filtre',150,JO],['2023-10-02','85200 km vidange filtre',150,JO],['2023-01-04','72000 km pneu ar',256,GC],['2022-11-29','70000 km vidange filtre frein av ar pneu av',824,GC],
+    ['2022-08-03','Feux stop arrière',63,GC],['2022-06-29','65900 KM vidange filtre',279,GC],['2021-12-18','36900 vidange filtre',193,GC],['2021-10-13','20400 KM pneu',164,GA],['2021-09-07','19249 km pare-brise',747,GA]]});
+  veh('Expert D','Utilitaire','HH-456-XA','Delson',30010,K,{next:40000,ct:'2030-01-28',w:[['2026-06-22','21000 KM vidange filtre et rappels',191.67,'Peugeot Guingamp']]});
+  veh('Kerax jaune','Camion','EL-321-PQ','Thierry',727855,null,{w:[['2022-05-31','727855 KM vidange filtres']]});
+  veh('Kerax blanc','Camion','','',null,null);
+  veh('DAF','Camion','CG-485-WL','Laurent',619500,null,{w:[['2026-08-03',''],['2022-09-09','619500 km vidange filtres']]});
+  veh('Renault Midlum','Camion','GW-908-ZK','Dépôt',393230,null,{ct:'2027-05-21',ctP:12,ctLabel:'CT ou passage aux Mines',w:[['2026-05-21','393230 KM vidange contrôle technique mines',2171,'Renaud Truck GGP']]});
+  veh('Remorque Kaiser','Remorque','CM-726-MV','',null,null);
+  veh('Remorque Asca','Remorque','BW-850-EF','',null,null);
+  veh('Remorque Louault','Remorque','AQ-554-EF','',null,null);
+  veh('Remorque Lider','Remorque','','Dépôt Tréglamus',null,null,{ap:'Feux arrière'});
+  veh('Remorque Goudon (mini-pelle)','Remorque','GL-212-RP','Dépôt Tréglamus',null,null,{ap:'Freins, pneus, hydraulique : devis en cours chez Locarmor'});
+  veh('Remorque Ecim (mini-pelle)','Remorque','','Rennes',null,null);
+}
+let S,UI={view:'dash',mid:null,fm:'',ft:'',stm:'',pt:'',parc:''},didMigrate=false;
+try{const q=localStorage.getItem('hydreau-parc-sel');if(['production','raccordement','transport'].includes(q))UI.parc=q}catch{}
+try{const r=localStorage.getItem(LS);S=norm(r?JSON.parse(r):seed())}catch{S=norm(seed())}
+if(didMigrate){didMigrate=false;setTimeout(persist,0)}
+
+/* ---------- Persistance ---------- */
+let dbDoc=null,timer=null,dirty=false,syncMode='local';
+function setSync(m){syncMode=m;$('#sync').textContent={local:'Enregistré sur cet appareil',shared:'Enregistré · partagé',err:"Erreur d'enregistrement",wait:'Enregistrement…'}[m]||''}
+function persist(){
+  dirty=true;setSync(dbDoc?'wait':'local');
+  try{localStorage.setItem(LS,JSON.stringify(S))}catch{}
+  clearTimeout(timer);timer=setTimeout(flush,500);
+}
+async function flush(){
+  if(!dbDoc){dirty=false;return}
+  try{await dbDoc.set(JSON.parse(JSON.stringify(S)));dirty=false;setSync('shared')}
+  catch(e){dirty=false;setSync('err');toast("Enregistrement partagé impossible (lecture seule ?). Copie gardée sur cet appareil.")}
+}
+(async()=>{
+  try{
+    const db=await window.claude?.use?.('db');
+    if(!db)return;
+    dbDoc=db.doc('parc/etat');setSync('shared');
+    dbDoc.onSnapshot(snap=>{
+      if(snap.metadata.hasPendingWrites||dirty)return;
+      if(snap.exists){
+        const d=norm(JSON.parse(JSON.stringify(snap.data())));
+        const mig=didMigrate;didMigrate=false;
+        if(JSON.stringify(d)!==JSON.stringify(S)){S=d;try{localStorage.setItem(LS,JSON.stringify(S))}catch{};render();if(mig)persist()}
+      }
+    },()=>{});
+  }catch{}
+})();
+
+/* ---------- Calculs ---------- */
+const M=id=>S.machines.find(m=>m.id===id);
+const PARCS=[['production','Production'],['raccordement','Raccordement'],['transport','Transport']];
+const PL=Object.fromEntries(PARCS);
+const PFULL={production:'Machines de production',raccordement:'Machines de raccordement',transport:'Véhicules de transport'};
+const inP=mid=>!UI.parc||M(mid)?.parc===UI.parc;
+const ms=()=>S.machines.filter(m=>!UI.parc||m.parc===UI.parc);
+const mname=id=>M(id)?.nom||'(machine supprimée)';
+function planInfo(p){
+  const m=M(p.mid),u=U(m);
+  if(!m||m.heures==null||p.nextH==null)return{st:'unk',rem:null,pct:0,u};
+  const rem=p.nextH-m.heures,al=p.alertH??(u==='km'?3000:50);
+  const st=rem<0?'late':rem<=al?'soon':'ok';
+  const pct=p.intervalH?Math.max(0,Math.min(100,(m.heures-(p.nextH-p.intervalH))/p.intervalH*100)):(st==='ok'?30:100);
+  return{st,rem,pct,u};
+}
+const remTxt=i=>i.rem==null?'échéance ou compteur à renseigner':i.rem<0?`dépassée de ${nf(-i.rem)} ${i.u}`:`reste ${nf(i.rem)} ${i.u}`;
+function ctrlInfo(c){const d=daysTo(c.echeance);return{st:d<0?'late':d<=30?'soon':'ok',d}}
+const ctrlTxt=i=>i.d<0?`dépassé de ${-i.d} j`:i.d===0?"aujourd'hui":`dans ${i.d} j`;
+function worst(a){return a.reduce((w,s)=>RANK[s]>RANK[w]?s:w,'unk')}
+function machineState(m){
+  const s=[...S.plans.filter(p=>p.mid===m.id).map(p=>planInfo(p).st),...S.controles.filter(c=>c.mid===m.id).map(c=>ctrlInfo(c).st)];
+  if(m.aPrevoir)s.push('soon');
+  return s.length?worst(s.filter(x=>x!=='unk').length?s.filter(x=>x!=='unk'):['unk']):'unk';
+}
+function lastReleve(mid){return S.releves.filter(r=>r.mid===mid&&r.date).map(r=>r.date).sort().pop()||''}
+function todo(){
+  const it=[];
+  for(const p of S.plans){if(!inP(p.mid))continue;const i=planInfo(p);if(i.st==='late'||i.st==='soon')it.push({st:i.st,mid:p.mid,t:p.label,d:`${remTxt(i)} (à ${cv(M(p.mid),p.nextH)})`,sort:i.rem})}
+  for(const c of S.controles){if(!inP(c.mid))continue;const i=ctrlInfo(c);if(i.st!=='ok')it.push({st:i.st,mid:c.mid,t:c.libelle,d:`échéance ${fd(c.echeance)}, ${ctrlTxt(i)}`,sort:i.d,go:'controles'})}
+  for(const s of S.stock){if(s.mid&&!inP(s.mid))continue;if(s.mini>0&&s.qte<=s.mini)it.push({st:s.qte<=0?'late':'soon',mid:s.mid,t:s.designation,d:`${nf(s.qte)} en stock (mini ${nf(s.mini)})`,sort:s.qte-s.mini,go:'stock'})}
+  for(const m of ms())if(m.aPrevoir)it.push({st:'soon',mid:m.id,t:'À prévoir',d:m.aPrevoir,sort:1e9});
+  it.sort((a,b)=>RANK[b.st]-RANK[a.st]||a.sort-b.sort);
+  const rel=[],stale=ms().filter(m=>m.type!=='Remorque'&&m.heures!=null&&(!lastReleve(m.id)||daysTo(lastReleve(m.id))<-9));
+  if(stale.length)rel.push({st:'info',mid:'',t:'Relevés de compteur',d:`${stale.length} machine${stale.length>1?'s':''} sans relevé récent : ${stale.slice(0,4).map(m=>m.nom).join(', ')}${stale.length>4?'…':''}`,go:'releves'});
+  return it.concat(rel);
+}
+
+/* ---------- Interface génériques ---------- */
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3600)}
+function fld(f,v){
+  const id='f_'+f.k,c=f.w?' class="w"':'';
+  if(f.t==='check')return`<div${c}><label class="chk"><input type="checkbox" id="${id}" name="${f.k}"${v?' checked':''}> ${esc(f.l)}</label></div>`;
+  let i;
+  if(f.t==='select')i=`<select id="${id}" name="${f.k}">${f.o.map(([a,b])=>`<option value="${esc(a)}"${a===v?' selected':''}>${esc(b)}</option>`).join('')}</select>`;
+  else if(f.t==='textarea')i=`<textarea id="${id}" name="${f.k}" rows="3">${esc(v)}</textarea>`;
+  else i=`<input id="${id}" name="${f.k}" type="${f.t||'text'}"${f.t==='number'?' step="any" inputmode="decimal"':''} value="${esc(v)}"${f.r?' required':''}>`;
+  return`<div${c}><label for="${id}">${esc(f.l)}${f.r?' *':''}</label>${i}</div>`;
+}
+function form(title,fields,vals,onSave,onDel){
+  const d=$('#dlg');
+  d.innerHTML=`<form><h2>${esc(title)}</h2><div class="fg">${fields.map(f=>fld(f,vals[f.k])).join('')}</div><div class="fa">${onDel?'<button type="button" class="btn danger" id="fdel">Supprimer</button>':''}<span class="sp"></span><button type="button" class="btn" id="fcan">Annuler</button><button class="btn pri">Enregistrer</button></div></form>`;
+  d.querySelector('#fcan').onclick=()=>d.close();
+  if(onDel)d.querySelector('#fdel').onclick=()=>confirmBox('Supprimer définitivement cet élément ?',()=>{onDel();persist();render()});
+  d.querySelector('form').onsubmit=e=>{
+    e.preventDefault();const out={};
+    for(const f of fields){const el=d.querySelector('#f_'+f.k);
+      out[f.k]=f.t==='check'?el.checked:f.t==='number'?(el.value===''?null:parseFloat(el.value)):el.value.trim()}
+    if(onSave(out)===false)return;
+    d.close();persist();render();
+  };
+  d.showModal();
+}
+function confirmBox(msg,yes){
+  const d=$('#dlg');
+  d.innerHTML=`<form><h2>Confirmer</h2><p style="margin:0">${esc(msg)}</p><div class="fa"><span class="sp"></span><button type="button" class="btn" id="no">Annuler</button><button type="button" class="btn danger" id="yes">Confirmer</button></div></form>`;
+  d.querySelector('#no').onclick=()=>d.close();
+  d.querySelector('#yes').onclick=()=>{d.close();yes()};
+  if(!d.open)d.showModal();
+}
+const mOpts=(blank)=>(blank?[['',blank]]:[]).concat(S.machines.map(m=>[m.id,m.nom]));
+function applyHours(m,h){if(m&&h!=null&&(m.heures==null||h>=m.heures))m.heures=h}
+
+/* ---------- Formulaires métier ---------- */
+const F={
+  machine:[{k:'nom',l:'Nom affiché',r:1,w:1},{k:'parc',l:'Parc',t:'select',o:PARCS.map(([k])=>[k,PFULL[k]]),w:1},{k:'type',l:'Type',t:'select',o:TYPES.map(t=>[t,t])},{k:'marque',l:'Marque'},{k:'modele',l:'Référence / modèle'},{k:'serie',l:'Numéro de série'},{k:'service',l:'Mise en service',t:'date'},{k:'unite',l:'Compteur en',t:'select',o:[['h','Heures (h)'],['km','Kilomètres (km)']]},{k:'heures',l:'Compteur actuel',t:'number'},{k:'immat',l:'Immatriculation'},{k:'chauffeur',l:'Chauffeur / affectation'},{k:'aPrevoir',l:'À prévoir (visible sur le tableau de bord)',t:'textarea',w:1},
+    {k:'refHuile',l:'Réf. filtre huile'},{k:'refHydro',l:'Réf. filtre hydraulique'},{k:'refGasoil',l:'Réf. filtre gasoil'},{k:'refAir',l:'Réf. filtre air'},{k:'refAutres',l:'Autres pièces (références)',t:'textarea',w:1}],
+  plan:[{k:'label',l:"Opération d'entretien",r:1,w:1},{k:'intervalH',l:'Tous les (h ou km)',t:'number'},{k:'nextH',l:'Prochaine à (h ou km)',t:'number'},{k:'alertH',l:'Prévenir avant (h ou km)',t:'number'}],
+  travail:()=>[{k:'mid',l:'Machine',t:'select',o:mOpts()},{k:'type',l:'Nature',t:'select',o:Object.entries(TT)},{k:'date',l:'Date',t:'date'},{k:'heures',l:'Compteur (h ou km)',t:'number'},{k:'description',l:'Travaux réalisés',r:1,w:1},{k:'fournisseur',l:'Fournisseur / garage'},{k:'lieu',l:'Lieu des travaux'},{k:'cout',l:'Coût HT (€)',t:'number'},{k:'duree',l:'Temps passé (h)',t:'number'}],
+  releve:[{k:'date',l:'Date',t:'date',r:1},{k:'heures',l:'Compteur fin de semaine',t:'number',r:1},{k:'conso',l:'Conso fioul (L)',t:'number'},{k:'verif',l:'Vérification faite',t:'check'},{k:'obs',l:'Observation',t:'textarea',w:1}],
+  controle:()=>[{k:'mid',l:'Machine',t:'select',o:mOpts()},{k:'libelle',l:'Contrôle',r:1,w:1},{k:'echeance',l:'Prochaine échéance',t:'date',r:1},{k:'periodeMois',l:'Périodicité (mois)',t:'number'},{k:'derniere',l:'Dernier contrôle',t:'date'},{k:'note',l:'Note',w:1}],
+  stock:()=>[{k:'designation',l:'Désignation',r:1,w:1},{k:'ref',l:'Référence'},{k:'mid',l:'Machine',t:'select',o:mOpts('Toutes / divers')},{k:'qte',l:'Quantité en stock',t:'number'},{k:'mini',l:'Seuil mini',t:'number'},{k:'prix',l:'Prix unitaire HT (€)',t:'number'},{k:'fournisseur',l:'Fournisseur'}]
+};
+const A={
+  logout:()=>{try{localStorage.removeItem(AUTH_KEY)}catch{};$('#gate').hidden=false;const gp=$('#gp');gp.value='';setTimeout(()=>gp.focus(),0)},
+  setParc:d=>{UI.parc=d.v;UI.fm=UI.stm=UI.pt='';try{localStorage.setItem('hydreau-parc-sel',d.v)}catch{};if(UI.view==='machine'&&UI.parc&&!inP(UI.mid)){UI.view='parc';UI.mid=null}render()},
+  nav:d=>{UI.view=d.v;UI.mid=null;render();scrollTo(0,0)},
+  open:d=>{UI.view='machine';UI.mid=d.id;render();scrollTo(0,0)},
+  go:d=>{UI.view=d.v;UI.mid=null;render();scrollTo(0,0)},
+  addMachine:()=>form('Nouvelle machine',F.machine,{parc:UI.parc||'raccordement',type:UI.parc==='transport'?'Utilitaire':UI.parc==='production'?'Foreuse':'Minipelle',unite:UI.parc==='transport'?'km':'h'},v=>{const m={id:uid(),...v};S.machines.push(m);UI.view='machine';UI.mid=m.id}),
+  editMachine:d=>{const m=M(d.id);form('Fiche machine',F.machine,m,v=>{Object.assign(m,v)},()=>{S.machines=S.machines.filter(x=>x.id!==m.id);for(const k of ['plans','travaux','releves','controles'])S[k]=S[k].filter(x=>x.mid!==m.id);UI.view='parc';UI.mid=null})},
+  addPlan:d=>form('Nouvelle opération',F.plan,{alertH:50},v=>{S.plans.push({id:uid(),mid:d.id,...v})}),
+  editPlan:d=>{const p=S.plans.find(x=>x.id===d.id);form("Opération d'entretien",F.plan,p,v=>{Object.assign(p,v)},()=>{S.plans=S.plans.filter(x=>x.id!==p.id)})},
+  donePlan:d=>{
+    const p=S.plans.find(x=>x.id===d.id),m=M(p.mid);
+    form(`Fait : ${p.label}`,F.travail().filter(f=>f.k!=='mid'),{type:'entretien',date:today,heures:m.heures,description:p.label},v=>{
+      S.travaux.push({id:uid(),mid:m.id,...v});applyHours(m,v.heures);
+      if(v.heures!=null&&p.intervalH)p.nextH=v.heures+p.intervalH;
+      toast(p.intervalH?`Prochaine ${p.label.toLowerCase()} : ${cv(m,p.nextH)}`:'Intervention enregistrée : mettez à jour la prochaine échéance avec « Modifier ».');
+    });
+  },
+  addTravail:d=>form('Nouvelle intervention',F.travail(),{mid:d.id||UI.mid||(S.machines[0]||{}).id,type:d.type||'entretien',date:today,heures:M(d.id||UI.mid)?.heures??null},v=>{S.travaux.push({id:uid(),...v});applyHours(M(v.mid),v.heures)}),
+  editTravail:d=>{const t=S.travaux.find(x=>x.id===d.id);form("Modifier l'intervention",F.travail(),t,v=>{Object.assign(t,v)},()=>{S.travaux=S.travaux.filter(x=>x.id!==t.id)})},
+  addReleve:d=>form("Relevé de compteur",F.releve,{date:today,heures:M(d.id)?.heures??null},v=>{S.releves.push({id:uid(),mid:d.id,...v});applyHours(M(d.id),v.heures)}),
+  editReleve:d=>{const r=S.releves.find(x=>x.id===d.id);form('Modifier le relevé',F.releve,r,v=>{Object.assign(r,v)},()=>{S.releves=S.releves.filter(x=>x.id!==r.id)})},
+  saveWeek:()=>{
+    const date=$('#wkdate').value||today;let n=0;
+    for(const m of S.machines){
+      const h=$('#wh_'+m.id)?.value;if(h==='')continue;const hv=parseFloat(h);
+      if(m.heures!=null&&hv<m.heures){toast(`${m.nom} : ${nf(hv)} ${U(m)} est inférieur au compteur enregistré (${nf(m.heures)} ${U(m)}).`);return}
+    }
+    for(const m of S.machines){
+      const h=$('#wh_'+m.id)?.value;if(h===''||h==null)continue;
+      const c=$('#wc_'+m.id).value,o=$('#wo_'+m.id).value.trim();
+      S.releves.push({id:uid(),mid:m.id,date,heures:parseFloat(h),conso:c===''?null:parseFloat(c),verif:$('#wv_'+m.id).checked,obs:o});applyHours(m,parseFloat(h));n++;
+    }
+    if(!n){toast('Saisissez au moins un compteur.');return}
+    persist();render();toast(`${n} relevé${n>1?'s':''} enregistré${n>1?'s':''}`);
+  },
+  addCtrl:d=>form('Nouveau contrôle',F.controle(),{mid:d.id||(S.machines[0]||{}).id,periodeMois:12},v=>{S.controles.push({id:uid(),...v})}),
+  editCtrl:d=>{const c=S.controles.find(x=>x.id===d.id);form('Modifier le contrôle',F.controle(),c,v=>{Object.assign(c,v);delete c.ex},()=>{S.controles=S.controles.filter(x=>x.id!==c.id)})},
+  doneCtrl:d=>{
+    const c=S.controles.find(x=>x.id===d.id);
+    form(`Effectué : ${c.libelle}`,[{k:'date',l:'Date du contrôle',t:'date',r:1},{k:'fournisseur',l:'Organisme / garage'},{k:'cout',l:'Coût HT (€)',t:'number'}],{date:today},v=>{
+      c.derniere=v.date;delete c.ex;if(c.periodeMois)c.echeance=addMonths(v.date,c.periodeMois);
+      S.travaux.push({id:uid(),mid:c.mid,type:'reglementaire',date:v.date,heures:M(c.mid)?.heures??null,description:c.libelle,fournisseur:v.fournisseur,cout:v.cout,duree:null,lieu:''});
+      toast(c.periodeMois?`Prochaine échéance : ${fd(c.echeance)}`:'Contrôle enregistré');
+    });
+  },
+  rmExamples:()=>{S.controles=S.controles.filter(c=>!c.ex);delete S.intro;persist();render()},
+  hideIntro:()=>{delete S.intro;persist();render()},
+  addStock:()=>form('Nouvelle pièce',F.stock(),{qte:0,mini:0},v=>{S.stock.push({id:uid(),...v})}),
+  editStock:d=>{const s=S.stock.find(x=>x.id===d.id);form('Modifier la pièce',F.stock(),s,v=>{Object.assign(s,v)},()=>{S.stock=S.stock.filter(x=>x.id!==s.id)})},
+  qty:d=>{const s=S.stock.find(x=>x.id===d.id);s.qte=Math.max(0,(s.qte||0)+parseInt(d.n));persist();render()},
+  export:()=>save(`parc-hydreau-${today}.json`,JSON.stringify(S,null,1),'application/json'),
+  csv:()=>{
+    const L=[['Date','Machine','Nature','Travaux','Compteur (h)','Fournisseur','Coût HT','Temps (h)','Lieu']];
+    for(const t of [...S.travaux].sort((a,b)=>(b.date||'').localeCompare(a.date||'')))L.push([fd(t.date),mname(t.mid),TT[t.type],t.description,t.heures??'',t.fournisseur,t.cout??'',t.duree??'',t.lieu]);
+    save(`travaux-${today}.csv`,'﻿'+L.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n'),'text/csv');
+  },
+  import:()=>$('#file').click()
+};
+async function save(name,data,type){
+  try{const dl=await window.claude?.use?.('downloads');
+    if(dl){await dl.save({filename:name,data});return}}catch(e){if(e?.code==='declined')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();
+}
+$('#file').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const d=norm(JSON.parse(await f.text()));if(!Array.isArray(d.machines))throw 0;
+    confirmBox(`Remplacer toutes les données actuelles par ce fichier (${d.machines.length} machines) ?`,()=>{S=d;persist();render();toast('Données importées')})}
+  catch{toast("Fichier non reconnu : importez un export JSON de cette application.")}
+};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-a]');if(!t)return;e.stopPropagation();const f=A[t.dataset.a];if(f)f(t.dataset)});
+
+/* ---------- Vues ---------- */
+const pill=s=>`<span class="pill ${s}">${ST[s]}</span>`;
+const empty=(msg)=>`<div class="empty">${msg}</div>`;
+function viewDash(){
+  const it=todo(),late=it.filter(i=>i.st==='late').length,soon=it.filter(i=>i.st==='soon').length;
+  const lim=addMonths(today,-12),c12=S.travaux.filter(t=>t.date>=lim&&inP(t.mid)).reduce((a,t)=>a+(t.cout||0),0);
+  const rows=ms().map(m=>({m,c12:S.travaux.filter(t=>t.mid===m.id&&t.date>=lim).reduce((a,t)=>a+(t.cout||0),0),tot:S.travaux.filter(t=>t.mid===m.id).reduce((a,t)=>a+(t.cout||0),0)})).filter(r=>r.tot>0).sort((a,b)=>b.c12-a.c12||b.tot-a.tot);
+  const max=Math.max(1,...rows.map(r=>r.c12));
+  const ex=S.controles.some(c=>c.ex);
+  return`${S.intro?`<div class="note"><span><b>Données reprises de vos fichiers de suivi</b> (matériel de rac., foreuses et compresseurs, véhicules et transport) : compteurs, échéances, contrôles et historiques. Les intervalles d'entretien (tous les 250 h, etc.) sont des valeurs de départ à corriger dans chaque fiche machine.${ex?' Les contrôles sans date de contrôle en cours sont des exemples.':''}</span>${ex?'<button class="btn sm" data-a="rmExamples">Supprimer les exemples</button>':''}<button class="btn sm" data-a="hideIntro">Compris</button></div>`:''}
+  <div class="kpis">
+    <div class="kpi"><b>${ms().length}</b><span>${UI.parc==='transport'?'véhicules suivis':'machines suivies'}</span></div>
+    <div class="kpi late"><b>${late}</b><span>en retard</span></div>
+    <div class="kpi soon"><b>${soon}</b><span>à prévoir</span></div>
+    <div class="kpi"><b>${eur(c12)}</b><span>dépensés sur 12 mois (HT)</span></div>
+  </div>
+  <section class="blk"><header><h2>À traiter</h2><span class="sp"></span><button class="btn sm" data-a="go" data-v="releves">Saisir les compteurs</button></header>
+    ${it.length?`<ul class="todo">${it.map(i=>`<li data-a="${i.go?'go':'open'}" data-v="${i.go||''}" data-id="${i.mid||''}">${pill(i.st)}<div class="w"><b>${esc(i.t)}</b> ${i.mid?`<span class="mute">· ${esc(M(i.mid)?.nom||'Divers')}</span>`:''}<div class="small mute">${esc(i.d)}</div></div></li>`).join('')}</ul>`:empty('Rien à signaler : toutes les échéances sont à jour.')}
+  </section>
+  <section class="blk"><header><h2>Coûts HT par machine</h2></header><div class="pad">
+    ${rows.length?`<div class="bars">${rows.map(r=>`<div class="bar"><span>${esc(r.m.nom)}</span><div class="t"><i style="width:${r.c12/max*100}%"></i></div><span class="mute small" style="text-align:right">12 mois : <b style="color:var(--ink)">${eur(r.c12)}</b> · total ${eur(r.tot)}</span></div>`).join('')}</div>`:empty('Aucun coût saisi pour le moment.')}
+  </div></section>`;
+}
+function viewParc(){
+  const types=[...new Set(ms().map(m=>m.type))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const l=ms().filter(m=>!UI.pt||m.type===UI.pt).slice().sort((a,b)=>a.type.localeCompare(b.type,'fr')||a.nom.localeCompare(b.nom,'fr'));
+  return`<section class="blk"><header><h2>${UI.parc?PFULL[UI.parc]:'Parc complet'}</h2><select id="pt" aria-label="Type" style="width:auto"><option value="">Tous les types (${ms().length})</option>${types.map(t=>`<option${UI.pt===t?' selected':''}>${esc(t)}</option>`).join('')}</select><span class="sp"></span><button class="btn pri" data-a="addMachine">Ajouter une machine</button></header>
+  ${l.length?`<div class="tw"><table><thead><tr><th>Machine</th><th>Type</th>${UI.parc?'':'<th>Parc</th>'}<th>Affectation</th><th class="n">Compteur</th><th>Prochaine échéance</th><th>État</th></tr></thead><tbody>
+  ${l.map(m=>{const ps=S.plans.filter(p=>p.mid===m.id).map(p=>({p,i:planInfo(p)})).filter(x=>x.i.rem!=null).sort((a,b)=>a.i.rem-b.i.rem)[0];
+    const nc=S.controles.filter(c=>c.mid===m.id).sort((a,b)=>a.echeance.localeCompare(b.echeance))[0];
+    const st=machineState(m);
+    return`<tr class="clk s-${st}" data-a="open" data-id="${m.id}"><td><b>${esc(m.nom)}</b>${m.immat?`<div class="small mute">${esc(m.immat)}</div>`:''}</td><td>${esc(m.type)}</td>${UI.parc?'':`<td>${PL[m.parc]||''}</td>`}<td>${esc(m.chauffeur)||'<span class="mute">—</span>'}</td><td class="n">${cv(m,m.heures)}</td><td>${ps?`${esc(ps.p.label)} <span class="mute small">· ${remTxt(ps.i)}</span>`:''}${nc?`${ps?'<br>':''}<span class="small">${esc(nc.libelle)} <span class="mute">· ${fd(nc.echeance)}</span></span>`:''}${!ps&&!nc?'<span class="mute">—</span>':''}</td><td>${pill(st)}</td></tr>`}).join('')}
+  </tbody></table></div>`:empty('Aucune machine. Ajoutez la première.')}</section>`;
+}
+function viewMachine(){
+  const m=M(UI.mid);if(!m){UI.view='parc';return viewParc()}
+  const plans=S.plans.filter(p=>p.mid===m.id),tr=S.travaux.filter(t=>t.mid===m.id).sort((a,b)=>(b.date||'').localeCompare(a.date||'')),rl=S.releves.filter(r=>r.mid===m.id).sort((a,b)=>b.date.localeCompare(a.date)),cs=S.controles.filter(c=>c.mid===m.id);
+  const kv=(l,v)=>`<div><span>${l}</span>${esc(v)||'<span style="display:inline;text-transform:none;letter-spacing:0">—</span>'}</div>`;
+  return`<div class="crumb"><button class="btn sm" data-a="nav" data-v="parc">← Parc</button><h2>${esc(m.nom)}</h2>${pill(machineState(m))}<span class="sp" style="flex:1"></span><button class="btn" data-a="editMachine" data-id="${m.id}">Modifier la fiche</button></div>
+  <section class="blk"><header><h2>Fiche</h2><span class="sp"></span><button class="btn sm pri" data-a="addReleve" data-id="${m.id}">Relevé de compteur</button></header><div class="pad kv">
+    <div><span>Compteur</span><b style="font-size:22px;font-family:var(--disp)">${cv(m,m.heures)}</b></div>${kv('Type',m.type)}${m.immat?kv('Immatriculation',m.immat):''}${m.chauffeur?kv('Chauffeur / affectation',m.chauffeur):''}${kv('Référence / modèle',[m.marque,m.modele].filter(Boolean).join(' '))}${kv('N° de série',m.serie)}${kv('Mise en service',m.service?fd(m.service):'')}
+    ${(U(m)==='h'||m.refHuile||m.refHydro||m.refGasoil||m.refAir)?kv('Filtre huile',m.refHuile)+kv('Filtre hydraulique',m.refHydro)+kv('Filtre gasoil',m.refGasoil)+kv('Filtre air',m.refAir):''}${m.refAutres?kv('Autres pièces',m.refAutres):''}${m.aPrevoir?`<div class="w" style="grid-column:1/-1"><span>À prévoir</span><b>${esc(m.aPrevoir)}</b></div>`:''}</div></section>
+  <section class="blk"><header><h2>Entretien programmé</h2><span class="sp"></span><button class="btn sm" data-a="addPlan" data-id="${m.id}">Ajouter</button></header>
+  ${plans.length?plans.map(p=>{const i=planInfo(p);return`<div class="plans"><div><b>${esc(p.label)}</b><div class="small mute">${p.intervalH?`tous les ${nf(p.intervalH)} ${U(m)}`:'échéance unique'}</div></div><div><div class="small">prochaine à <b>${cv(m,p.nextH)}</b></div><div class="small mute">${remTxt(i)}</div></div><div class="gauge" title="${remTxt(i)}"><i class="${i.st}" style="width:${i.pct}%"></i></div>${pill(i.st)}<div class="acts"><button class="btn sm pri" data-a="donePlan" data-id="${p.id}">Fait</button><button class="btn sm" data-a="editPlan" data-id="${p.id}">Modifier</button></div></div>`}).join(''):empty(m.heures==null?"Cette machine n'a pas de compteur horaire : suivez-la par contrôles ou interventions.":'Aucune opération programmée. Ajoutez par exemple une vidange moteur.')}</section>
+  ${cs.length?`<section class="blk"><header><h2>Contrôles</h2></header><div class="tw"><table><tbody>${cs.map(c=>{const i=ctrlInfo(c);return`<tr class="clk" data-a="editCtrl" data-id="${c.id}"><td>${esc(c.libelle)}</td><td>${fd(c.echeance)}</td><td>${pill(i.st)}</td></tr>`}).join('')}</tbody></table></div></section>`:''}
+  <section class="blk"><header><h2>Historique des travaux</h2><span class="sp"></span><button class="btn sm" data-a="addTravail" data-id="${m.id}">Ajouter</button></header>${tblTravaux(tr,false)}</section>
+  <section class="blk"><header><h2>Relevés de compteur</h2></header>${rl.length?`<div class="tw"><table><thead><tr><th>Date</th><th class="n">Compteur</th><th class="n">Fioul (L)</th><th>Vérif.</th><th>Observation</th></tr></thead><tbody>${rl.map(r=>`<tr class="clk" data-a="editReleve" data-id="${r.id}"><td>${fd(r.date)}</td><td class="n">${cv(m,r.heures)}</td><td class="n">${nf(r.conso)}</td><td>${r.verif?'Oui':'Non'}</td><td>${esc(r.obs)}</td></tr>`).join('')}</tbody></table></div>`:empty('Aucun relevé.')}</section>`;
+}
+function tblTravaux(list,withM){
+  if(!list.length)return empty('Aucune intervention.');
+  return`<div class="tw"><table><thead><tr><th>Date</th>${withM?'<th>Machine</th>':''}<th>Nature</th><th>Travaux</th><th class="n">Compteur</th><th>Fournisseur</th><th>Lieu</th><th class="n">Coût HT</th><th class="n">Temps</th></tr></thead><tbody>
+  ${list.map(t=>`<tr class="clk" data-a="editTravail" data-id="${t.id}"><td class="n" style="text-align:left">${fd(t.date)}</td>${withM?`<td>${esc(mname(t.mid))}</td>`:''}<td>${TT[t.type]||''}</td><td>${esc(t.description)}</td><td class="n">${cv(M(t.mid),t.heures)}</td><td>${esc(t.fournisseur)||'—'}</td><td>${esc(t.lieu)||'—'}</td><td class="n">${eur(t.cout)}</td><td class="n">${t.duree==null?'—':nf(t.duree)+' h'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function viewTravaux(){
+  let l=S.travaux.filter(t=>inP(t.mid)&&(!UI.fm||t.mid===UI.fm)&&(!UI.ft||t.type===UI.ft)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const tot=l.reduce((a,t)=>a+(t.cout||0),0),tps=l.reduce((a,t)=>a+(t.duree||0),0);
+  return`<section class="blk"><header><h2>Travaux, pannes et coûts</h2><span class="sp"></span><button class="btn pri" data-a="addTravail">Ajouter une intervention</button></header>
+  <div class="pad filters"><select id="fm" aria-label="Machine"><option value="">Toutes les machines</option>${ms().map(m=>`<option value="${m.id}"${UI.fm===m.id?' selected':''}>${esc(m.nom)}</option>`).join('')}</select>
+  <select id="ft" aria-label="Nature"><option value="">Toutes natures</option>${Object.entries(TT).map(([k,v])=>`<option value="${k}"${UI.ft===k?' selected':''}>${v}</option>`).join('')}</select>
+  <span class="mute small" style="margin-left:auto">${l.length} intervention${l.length>1?'s':''} · <b style="color:var(--ink)">${eur(tot)}</b> HT · ${nf(tps)} h passées</span></div>${tblTravaux(l,true)}</section>`;
+}
+function viewReleves(){
+  const all=S.releves.filter(r=>inP(r.mid)).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,25);
+  const wm=ms().filter(m=>m.type!=='Remorque');
+  return`<section class="blk"><header><h2>Relevé de la semaine</h2><span class="sp"></span><label class="small mute" for="wkdate">Date</label><input type="date" id="wkdate" value="${today}" style="width:auto"></header>
+  <div class="tw wk"><table><thead><tr><th>Machine</th><th class="n">Dernier compteur</th><th>Compteur fin de semaine</th><th>Fioul (L)</th><th>Vérif.</th><th>Observation</th></tr></thead><tbody>
+  ${wm.map(m=>`<tr><td><b>${esc(m.nom)}</b> <span class="mute small">(${U(m)})</span></td><td class="n">${cv(m,m.heures)}</td><td><input type="number" step="any" inputmode="decimal" id="wh_${m.id}" aria-label="Compteur ${esc(m.nom)}" placeholder="${m.heures??''}"></td><td><input type="number" step="any" inputmode="decimal" id="wc_${m.id}" aria-label="Fioul ${esc(m.nom)}"></td><td><input type="checkbox" id="wv_${m.id}" aria-label="Vérification faite ${esc(m.nom)}"></td><td><input type="text" id="wo_${m.id}" aria-label="Observation ${esc(m.nom)}" style="min-width:160px"></td></tr>`).join('')}</tbody></table></div>
+  <div class="pad"><button class="btn pri" data-a="saveWeek">Enregistrer le relevé</button> <span class="small mute">Seules les lignes renseignées sont enregistrées.</span></div></section>
+  <section class="blk"><header><h2>Derniers relevés</h2></header>${all.length?`<div class="tw"><table><thead><tr><th>Date</th><th>Machine</th><th class="n">Compteur</th><th class="n">Fioul (L)</th><th>Vérif.</th><th>Observation</th></tr></thead><tbody>${all.map(r=>`<tr class="clk" data-a="editReleve" data-id="${r.id}"><td>${fd(r.date)}</td><td>${esc(mname(r.mid))}</td><td class="n">${cv(M(r.mid),r.heures)}</td><td class="n">${nf(r.conso)}</td><td>${r.verif?'Oui':'Non'}</td><td>${esc(r.obs)}</td></tr>`).join('')}</tbody></table></div>`:empty('Aucun relevé.')}</section>`;
+}
+function viewControles(){
+  const l=S.controles.filter(c=>inP(c.mid)).sort((a,b)=>a.echeance.localeCompare(b.echeance));
+  return`<section class="blk"><header><h2>Contrôles réglementaires</h2><span class="sp"></span>${l.some(c=>c.ex)?'<button class="btn sm" data-a="rmExamples">Supprimer les exemples</button>':''}<button class="btn pri" data-a="addCtrl">Ajouter un contrôle</button></header>
+  ${l.length?`<div class="tw"><table><thead><tr><th>Contrôle</th><th>Machine</th><th>Échéance</th><th>Périodicité</th><th>Dernier</th><th>État</th><th></th></tr></thead><tbody>
+  ${l.map(c=>{const i=ctrlInfo(c);return`<tr class="s-${i.st}"><td><b>${esc(c.libelle)}</b>${c.ex?' <span class="pill ex">exemple</span>':''}${c.note&&!c.ex?`<div class="small mute">${esc(c.note)}</div>`:''}</td><td>${esc(mname(c.mid))}</td><td class="n" style="text-align:left">${fd(c.echeance)}<div class="small mute">${ctrlTxt(i)}</div></td><td>${c.periodeMois?c.periodeMois+' mois':'—'}</td><td>${fd(c.derniere)}</td><td>${pill(i.st)}</td><td><div class="acts"><button class="btn sm pri" data-a="doneCtrl" data-id="${c.id}">Fait</button><button class="btn sm" data-a="editCtrl" data-id="${c.id}">Modifier</button></div></td></tr>`}).join('')}</tbody></table></div>`:empty('Aucun contrôle. Ajoutez VGP, contrôle technique, assurance, extincteurs…')}</section>`;
+}
+function viewStock(){
+  const l=S.stock.filter(s=>(!s.mid||inP(s.mid))&&(!UI.stm||s.mid===UI.stm)).sort((a,b)=>a.designation.localeCompare(b.designation,'fr'));
+  const val=l.reduce((a,s)=>a+(s.qte||0)*(s.prix||0),0);
+  return`<section class="blk"><header><h2>Pièces et consommables</h2><span class="sp"></span><button class="btn pri" data-a="addStock">Ajouter une pièce</button></header>
+  <div class="pad filters"><select id="stm" aria-label="Machine"><option value="">Toutes les machines</option>${ms().map(m=>`<option value="${m.id}"${UI.stm===m.id?' selected':''}>${esc(m.nom)}</option>`).join('')}</select><span class="mute small" style="margin-left:auto">Valeur du stock : <b style="color:var(--ink)">${eur(val)}</b> HT</span></div>
+  ${l.length?`<div class="tw"><table><thead><tr><th>Désignation</th><th>Référence</th><th>Machine</th><th class="n">En stock</th><th class="n">Mini</th><th class="n">Prix HT</th><th>Fournisseur</th><th></th></tr></thead><tbody>
+  ${l.map(s=>{const st=s.mini>0&&s.qte<=s.mini?(s.qte<=0?'late':'soon'):'';return`<tr class="${st?'s-'+st:''}"><td><b>${esc(s.designation)}</b></td><td>${esc(s.ref)||'<span class="mute">à renseigner</span>'}</td><td>${s.mid?esc(mname(s.mid)):'—'}</td><td class="n"><span class="acts" style="justify-content:flex-end;align-items:center"><button class="btn sm" data-a="qty" data-id="${s.id}" data-n="-1" aria-label="Retirer un">−</button><b style="min-width:2ch;text-align:center">${nf(s.qte)}</b><button class="btn sm" data-a="qty" data-id="${s.id}" data-n="1" aria-label="Ajouter un">+</button></span></td><td class="n">${nf(s.mini)}</td><td class="n">${eur(s.prix)}</td><td>${esc(s.fournisseur)||'—'}</td><td><button class="btn sm" data-a="editStock" data-id="${s.id}">Modifier</button></td></tr>`}).join('')}</tbody></table></div>`:empty('Aucune pièce en stock.')}</section>`;
+}
+const NAV=[['dash','Tableau de bord'],['parc','Parc'],['releves','Relevés'],['travaux','Travaux & coûts'],['controles','Contrôles'],['stock','Stock']];
+function render(){
+  $('#parcs').innerHTML=[['','Tout le parc',S.machines.length],...PARCS.map(([k,l])=>[k,l,S.machines.filter(m=>m.parc===k).length])].map(([k,l,n])=>`<button data-a="setParc" data-v="${k}" aria-pressed="${UI.parc===k}">${l} · ${n}</button>`).join('');
+  $('#nav').innerHTML=NAV.map(([k,l])=>`<button data-a="nav" data-v="${k}"${(UI.view===k||(UI.view==='machine'&&k==='parc'))?' aria-current="page"':''}>${l}</button>`).join('');
+  const v={dash:viewDash,parc:viewParc,machine:viewMachine,travaux:viewTravaux,releves:viewReleves,controles:viewControles,stock:viewStock}[UI.view];
+  $('#main').innerHTML=v();
+  for(const [id,key] of [['fm','fm'],['ft','ft'],['stm','stm'],['pt','pt']]){const e=$('#'+id);if(e)e.onchange=()=>{UI[key]=e.value;render()}}
+}
+setSync('local');render();
+
+let authed=false;
+try{authed=localStorage.getItem(AUTH_KEY)==='1'}catch{}
+if(authed)$('#gate').hidden=true;
+$('#gateform').onsubmit=async e=>{
+  e.preventDefault();
+  const gp=$('#gp'),err=$('#gerr'),btn=e.target.querySelector('button');
+  btn.disabled=true;
+  const h=await sha256(gp.value);
+  btn.disabled=false;
+  if(h===AUTH_HASH){
+    try{localStorage.setItem(AUTH_KEY,'1')}catch{}
+    err.textContent='';$('#gate').hidden=true;
+  }else{
+    err.textContent='Mot de passe incorrect.';gp.value='';gp.focus();
+  }
+};
+if(!authed)setTimeout(()=>$('#gp')?.focus(),0);
+</script>
+</body>
+</html>
