@@ -411,7 +411,7 @@
   .plan-layout{display:grid; grid-template-columns:1fr 260px; gap:16px; align-items:start;}
   .plan-grid{background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow-soft);}
   .plan-grid-inner{display:grid; grid-template-columns:150px repeat(5,1fr); min-width:900px;}
-  .plan-cell{border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:10px; min-height:64px;}
+  .plan-cell{border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:10px; min-height:64px; display:flex; flex-direction:column; gap:6px;}
   .plan-cell-last{border-right:none;}
   .plan-head-cell{background:var(--surface-2); padding:9px 10px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-muted); border-bottom:1px solid var(--border); border-right:1px solid var(--border);}
   .plan-team-cell{display:flex; align-items:center; gap:8px; font-weight:700; font-size:12.5px; background:var(--surface-2);}
@@ -425,6 +425,8 @@
   .plan-logi-cell{display:flex; flex-direction:column; gap:4px;}
   .plan-logi-cell .plan-client-wrap{width:100%;}
   .plan-logi-mat{font-size:11.5px;}
+  .plan-note-input{font-size:11px; padding:4px 6px; color:var(--ink-soft);}
+  .plan-note-input::placeholder{color:var(--ink-muted);}
   .job{
     background:var(--surface-2); border-left:3px solid var(--c, var(--brand-teal));
     border-radius:6px; padding:6px 8px; font-size:11.5px; font-weight:600; line-height:1.35;
@@ -669,7 +671,7 @@
             <div class="delta" id="dashChantiersDelta">Aucun chantier pour l'instant</div>
           </div>
           <div class="card kpi">
-            <div class="label">Mètres forés — cumul</div>
+            <div class="label">Mètres forés — réalisé</div>
             <div class="value" id="dashMetres">0&nbsp;m</div>
             <div class="delta" id="dashMetresDelta">—</div>
           </div>
@@ -2363,10 +2365,12 @@
     return html;
   }
   function planClientCellHtml(id, selected, colorVar){
+    var cellData = state.planning[id] || {};
     var infoBtn = (selected && state.chantiers[selected])
       ? '<button type="button" class="plan-fiche-btn" data-fiche-id="' + selected + '" title="Voir la fiche" aria-label="Voir la fiche">' + FICHE_ICON + '</button>'
       : "";
-    return '<div class="plan-client-wrap"><select class="cell-select field-input plan-client-select" style="--c:' + colorVar + '" data-col="planning" data-id="' + id + '" data-field="chantierId">' + planClientOptionsHtml(selected) + '</select>' + infoBtn + '</div>';
+    return '<div class="plan-client-wrap"><select class="cell-select field-input plan-client-select" style="--c:' + colorVar + '" data-col="planning" data-id="' + id + '" data-field="chantierId">' + planClientOptionsHtml(selected) + '</select>' + infoBtn + '</div>'
+      + '<input type="text" class="cell-input field-input plan-note-input" placeholder="Note…" data-col="planning" data-id="' + id + '" data-field="note" value="' + String(cellData.note || "").replace(/"/g, "&quot;") + '">';
   }
   var logiStatut = { ok:{cls:"ok", label:"Prêt"}, prep:{cls:"attente", label:"En préparation"}, bloque:{cls:"probleme", label:"Manque stock"} };
   function logiStatutSelectHtml(id, value){
@@ -2682,14 +2686,20 @@
     setText("dashChantiersActifs", String(count));
     setText("dashChantiersDelta", count ? ("dont " + enAttente + " en attente de démarrage") : "Aucun chantier pour l'instant");
 
-    var depthGeo = 0, depthEau = 0;
+    // Mètres de forage réalisés (chantiers au statut "Terminé") vs. restant à forer (tous les autres)
+    var forageRealise = 0, forageReste = 0;
     chantiers.forEach(function(c){
-      if(c.type === "Géothermie"){ depthGeo += totalLongueur(c); }
-      if(c.type === "Forage eau"){ depthEau += totalLongueur(c); }
+      var v = totalLongueur(c);
+      if(!v) return;
+      if(c.forageStatut === "ok"){ forageRealise += v; } else { forageReste += v; }
     });
-    var depthTotal = depthGeo + depthEau;
-    setText("dashMetres", depthTotal.toLocaleString("fr-FR") + " m");
-    setText("dashMetresDelta", depthTotal ? ("Géothermie " + depthGeo.toLocaleString("fr-FR") + " m · Eau " + depthEau.toLocaleString("fr-FR") + " m") : "—");
+    setText("dashMetres", forageRealise.toLocaleString("fr-FR") + " m");
+    var dashMetresDeltaEl = document.getElementById("dashMetresDelta");
+    if(dashMetresDeltaEl){
+      dashMetresDeltaEl.innerHTML = forageReste
+        ? ('<strong style="color:var(--crit-ink);">' + forageReste.toLocaleString("fr-FR") + ' m</strong> restant à forer')
+        : (forageRealise ? "Tout le métrage prévu est foré" : "—");
+    }
 
     var problemeChantiers = chantiers.filter(function(c){ return c.forageStatut === "probleme" || c.raccStatut === "probleme"; }).length;
     var stockProblems = 0;
