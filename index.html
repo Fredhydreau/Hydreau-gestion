@@ -493,7 +493,9 @@
   .stock-add-btn:hover{border-color:var(--brand-teal); background:var(--brand-sky);}
   .rappel-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border);}
   .rappel-row:last-child{border-bottom:none;}
-  .rappel-text{flex:1; font-size:13px; color:var(--ink); word-break:break-word;}
+  .rappel-text-input{flex:1; font:inherit; font-size:13px; font-weight:600; color:var(--crit-ink); word-break:break-word; border:1px solid transparent; background:none; border-radius:6px; padding:5px 7px; margin:-5px -7px;}
+  .rappel-text-input:hover{border-color:var(--border);}
+  .rappel-text-input:focus{border-color:var(--brand-teal); outline:none; background:var(--surface);}
   .rappel-date{font-size:11px; color:var(--ink-muted); white-space:nowrap; flex:none;}
 
   .equiplist{display:flex; flex-direction:column; gap:0;}
@@ -700,7 +702,7 @@
           <div class="hint">Notes libres pour l'équipe — visibles par tous, à supprimer une fois traitées</div>
           <div id="rappelsList"></div>
           <div class="stock-add-row">
-            <input type="text" id="rappelNewInput" placeholder="Écrire un rappel…" maxlength="240">
+            <input type="text" id="rappelNewInput" placeholder="Écrire un rappel…" maxlength="240" autocomplete="off" data-lpignore="true">
             <button type="button" class="stock-add-btn" id="rappelAddBtn">+ Ajouter</button>
           </div>
         </div>
@@ -1141,7 +1143,11 @@
     <div style="padding:18px 20px 20px;">
       <div class="form-row">
         <label for="loginPassword">Mot de passe</label>
-        <input type="password" id="loginPassword" placeholder="••••••••">
+        <!-- Champ "nom d'utilisateur" cache : sans lui, certains navigateurs associent le mot de passe
+             enregistre au premier champ texte trouve ailleurs sur la page (ex. le champ « Ecrire un
+             rappel »), et proposent alors une suggestion de connexion dessus par erreur. -->
+        <input type="text" id="loginEmailHidden" value="contact@hydreau-forage.fr" autocomplete="username" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" tabindex="-1" aria-hidden="true">
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
       </div>
       <div class="hint" id="loginError" style="color:var(--crit-ink); display:none; margin-top:4px;">Mot de passe incorrect.</div>
       <button type="button" class="btn-primary" id="loginBtn" style="width:100%; justify-content:center; margin-top:14px;">Se connecter</button>
@@ -2868,7 +2874,9 @@
     if(!listEl) return;
     var items = sortedArray(state.rappels, function(a, b){ return (b.createdAt || 0) - (a.createdAt || 0); });
     listEl.innerHTML = items.length ? items.map(function(r){
-      return '<div class="rappel-row"><div class="rappel-text">' + escapeHtml(r.text || "") + '</div>'
+      var valueAttr = escapeHtml(r.text || "").replace(/"/g, "&quot;");
+      return '<div class="rappel-row">'
+        + '<input type="text" class="field-input rappel-text-input" autocomplete="off" data-lpignore="true" data-col="rappels" data-id="' + r.id + '" data-field="text" maxlength="240" value="' + valueAttr + '">'
         + '<div class="rappel-date">' + escapeHtml(r.dateLabel || "") + '</div>'
         + delBtnHtml("rappels", r.id)
         + '</div>';
