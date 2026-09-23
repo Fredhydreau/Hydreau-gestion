@@ -2194,18 +2194,16 @@
   function ficheFieldsFor(c, kind){
     if(kind === "raccordeur"){
       return [
-        ["Responsable du chantier", c.responsable || "—"],
+        ["Suivi par", c.suivi || "—"],
         ["Adresse", ficheAdresseLine(c)],
         ["Téléphone", c.telephone || "—"],
         ["Type de chantier", c.type || "—"],
         ["Longueur(s) forée(s)", ficheForageLengths(c)],
-        ["Statut du forage", ficheStatusLabel(statutMeta, c.forageStatut)],
-        ["Statut du raccordement", c.raccNA ? "Sans objet" : ficheStatusLabel(statutMeta, c.raccStatut || "attente")],
         ["Notes / reste à faire", c.reste || "—"]
       ];
     }
     return [
-      ["Responsable du chantier", c.responsable || "—"],
+      ["Suivi par", c.suivi || "—"],
       ["Adresse", ficheAdresseLine(c)],
       ["Téléphone", c.telephone || "—"],
       ["Type de chantier", c.type || "—"],
