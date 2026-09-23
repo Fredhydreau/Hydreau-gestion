@@ -2485,6 +2485,18 @@
     html += '<div class="plan-section-label">Raccordement</div>';
     RACC_TEAM_ORDER.forEach(renderTeamRow);
 
+    html += '<div class="plan-section-label">Divers</div>';
+    DIVERS_ROWS.forEach(function(key){
+      var dm = diversRowMeta[key];
+      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + dm.color + '"></span><span class="team-label-text" style="color:' + dm.color + '">' + dm.label + "</span></div>";
+      days.forEach(function(day, di){
+        var id = wk.id + "-" + key + "-" + di;
+        var cell = state.planning[id] || {};
+        var lastCls = di === days.length - 1 ? " plan-cell-last" : "";
+        html += '<div class="plan-cell' + lastCls + '">' + planClientCellHtml(id, cell.chantierId || "", dm.color) + "</div>";
+      });
+    });
+
     html += '<div class="plan-section-label">Logistique — sorties dépôts</div>';
     LOGI_ROWS.forEach(function(key){
       var lm = logiRowMeta[key];
@@ -2498,18 +2510,6 @@
           + '<input type="text" class="cell-input field-input plan-logi-mat" placeholder="Matériel" data-col="planning" data-id="' + id + '" data-field="mat" value="' + String(cell.mat || "").replace(/"/g, "&quot;") + '">'
           + logiStatutSelectHtml(id, cell.statut)
           + "</div>";
-      });
-    });
-
-    html += '<div class="plan-section-label">Divers</div>';
-    DIVERS_ROWS.forEach(function(key){
-      var dm = diversRowMeta[key];
-      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + dm.color + '"></span><span class="team-label-text" style="color:' + dm.color + '">' + dm.label + "</span></div>";
-      days.forEach(function(day, di){
-        var id = wk.id + "-" + key + "-" + di;
-        var cell = state.planning[id] || {};
-        var lastCls = di === days.length - 1 ? " plan-cell-last" : "";
-        html += '<div class="plan-cell' + lastCls + '">' + planClientCellHtml(id, cell.chantierId || "", dm.color) + "</div>";
       });
     });
 
