@@ -423,6 +423,7 @@
   .plan-head-cell{background:var(--surface-2); padding:9px 10px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-muted); border-bottom:1px solid var(--border); border-right:1px solid var(--border);}
   .plan-team-cell{display:flex; align-items:center; gap:8px; font-weight:700; font-size:12.5px; background:var(--surface-2);}
   .plan-team-cell .dot{width:10px;height:10px;border-radius:3px; flex:none;}
+  .plan-team-cell .team-label-text{font-size:14.5px;}
   .plan-section-label{grid-column:1 / -1; background:var(--surface-3); padding:7px 10px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-muted); border-bottom:1px solid var(--border);}
   .plan-client-wrap{display:flex; align-items:center; gap:4px;}
   .plan-client-wrap .plan-client-select{flex:1; min-width:0;}
@@ -1707,7 +1708,7 @@
     var el = document.getElementById("backlogList");
     if(!el) return;
     var rows = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
-      return !c.raccNA && c.forageStatut === "ok" && (c.raccStatut === null || c.raccStatut === undefined || c.raccStatut === "attente");
+      return !!c.planifier && !c.raccNA && c.forageStatut === "ok" && (c.raccStatut === null || c.raccStatut === undefined || c.raccStatut === "attente");
     });
     if(rows.length === 0){ el.innerHTML = '<div class="hint">Aucun raccordement en attente.</div>'; return; }
     el.innerHTML = rows.map(function(c){
@@ -1718,7 +1719,7 @@
     var el = document.getElementById("backlogForageList");
     if(!el) return;
     var rows = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
-      return c.forageStatut === "attente";
+      return !!c.planifier && c.forageStatut === "attente";
     });
     if(rows.length === 0){ el.innerHTML = '<div class="hint">Aucun forage en attente.</div>'; return; }
     el.innerHTML = rows.map(function(c){
@@ -2443,7 +2444,7 @@
 
     function renderTeamRow(team){
       var tm = teamMeta[team];
-      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + tm.color + '"></span>' + tm.label + "</div>";
+      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + tm.color + '"></span><span class="team-label-text" style="color:' + tm.color + '">' + tm.label + "</span></div>";
       days.forEach(function(day, di){
         var id = wk.id + "-" + team + "-" + di;
         var cell = state.planning[id] || {};
@@ -2458,7 +2459,7 @@
     html += '<div class="plan-section-label">Logistique — sorties dépôts</div>';
     LOGI_ROWS.forEach(function(key){
       var lm = logiRowMeta[key];
-      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + lm.color + '"></span>' + lm.label + "</div>";
+      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + lm.color + '"></span><span class="team-label-text" style="color:' + lm.color + '">' + lm.label + "</span></div>";
       days.forEach(function(day, di){
         var id = wk.id + "-" + key + "-" + di;
         var cell = state.planning[id] || {};
