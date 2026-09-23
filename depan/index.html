@@ -396,14 +396,6 @@
             <span>Marquer comme urgente</span>
           </label>
         </div>
-        <div class="field">
-          <label>Photos</label>
-          <label class="photo-add" id="photoAddLabel">
-            + Ajouter des photos
-            <input type="file" id="f-photos" accept="image/*" capture="environment" multiple style="display:none">
-          </label>
-          <div class="photo-chips" id="photoChips"></div>
-        </div>
         <button type="submit" class="submit-btn" id="submitBtn">Créer l'intervention</button>
         <div class="form-msg" id="formMsg"></div>
         <p class="hint" style="margin:10px 0 0;">Le compte-rendu (ce qui a été fait, durée, matériel) se renseigne plus tard, au moment de clôturer.</p>
@@ -460,11 +452,6 @@
       <button class="active" data-tab="liste" type="button">Interventions</button>
     </div>
   </nav>
-</div>
-
-<div class="lightbox" id="lightbox" hidden>
-  <button id="lightboxClose" aria-label="Fermer">×</button>
-  <img id="lightboxImg" alt="Photo de l'intervention">
 </div>
 
 <div class="modal-overlay" id="clientModal" hidden>
@@ -614,7 +601,6 @@
      ============================================================ -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <script>
   var firebaseConfig = {
     apiKey: "AIzaSyAGxiK2UO1FSe_bwDNUPFwrkAPfM4-y5XQ",
@@ -637,11 +623,9 @@
     filter: "tous",
     search: "",
     clientSearch: "",
-    pendingPhotos: [], // {id, url, uploading}
     confirmingDelete: null,
     confirmingClientDelete: null,
-    dbNS: null,
-    assetsNS: null
+    dbNS: null
   };
 
   function $(sel, root){ return (root||document).querySelector(sel); }
@@ -746,66 +730,11 @@
     if(!text){ el.classList.remove("show"); }
   }
 
-  // ---------- photo upload ----------
-  $("#f-photos").addEventListener("change", function(e){
-    var files = Array.prototype.slice.call(e.target.files || []);
-    e.target.value = "";
-    if(!files.length) return;
-    if(!state.assetsNS){
-      setFormMsg("err", "Photos indisponibles : accès non accordé sur cette vue.");
-      return;
-    }
-    files.forEach(function(file){
-      var placeholderId = "up_"+Math.random().toString(36).slice(2);
-      state.pendingPhotos.push({id: placeholderId, url: null, uploading: true});
-      renderPhotoChips();
-      state.assetsNS.upload(file).then(function(res){
-        var item = state.pendingPhotos.find(function(p){ return p.id === placeholderId; });
-        if(item){ item.id = res.id; item.url = res.url; item.uploading = false; }
-        renderPhotoChips();
-      }).catch(function(err){
-        state.pendingPhotos = state.pendingPhotos.filter(function(p){ return p.id !== placeholderId; });
-        renderPhotoChips();
-        setFormMsg("err", "Échec de l'envoi d'une photo (" + (err && err.code || "erreur") + ").");
-      });
-    });
-  });
-
-  function renderPhotoChips(){
-    var wrap = $("#photoChips");
-    wrap.innerHTML = "";
-    state.pendingPhotos.forEach(function(p){
-      var chip = document.createElement("div");
-      chip.className = "photo-chip" + (p.uploading ? " uploading" : "");
-      if(p.uploading){
-        chip.innerHTML = '<div class="spinner"></div>';
-      } else {
-        var img = document.createElement("img");
-        img.src = p.url;
-        chip.appendChild(img);
-        var btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = "×";
-        btn.addEventListener("click", function(){
-          state.pendingPhotos = state.pendingPhotos.filter(function(x){ return x.id !== p.id; });
-          renderPhotoChips();
-          if(state.assetsNS){ state.assetsNS.delete(p.id).catch(function(){}); }
-        });
-        chip.appendChild(btn);
-      }
-      wrap.appendChild(chip);
-    });
-  }
-
   // ---------- intervention form submit ----------
   $("#interventionForm").addEventListener("submit", function(e){
     e.preventDefault();
     if(!state.dbNS){
       setFormMsg("err", "Le carnet n'est pas accessible pour le moment.");
-      return;
-    }
-    if(state.pendingPhotos.some(function(p){ return p.uploading; })){
-      setFormMsg("err", "Merci d'attendre la fin de l'envoi des photos.");
       return;
     }
     var client = $("#f-client").value.trim();
@@ -824,7 +753,6 @@
       aPlanifier: aPlanifier,
       urgent: !!$("#f-urgent").checked,
       statut: "ouvert",
-      photos: state.pendingPhotos.map(function(p){ return { id: p.id, url: p.url }; }),
       createdAt: new Date().toISOString()
     };
 
@@ -839,8 +767,6 @@
       $("#f-date-appel").value = todayISO();
       dateInput.disabled = false;
       planToggle.classList.remove("checked");
-      state.pendingPhotos = [];
-      renderPhotoChips();
       urgentToggle.classList.remove("checked");
       showToast("Intervention créée");
       var listBtn = $('#bottomNav button[data-tab="liste"]');
@@ -1148,12 +1074,6 @@
           }
         });
       }
-      $all(".card-photos img", card).forEach(function(img){
-        img.addEventListener("click", function(){
-          $("#lightboxImg").src = img.getAttribute("data-full") || img.src;
-          $("#lightbox").hidden = false;
-        });
-      });
     });
   }
 
@@ -1344,10 +1264,6 @@
       if(item.kilometrage) meta.push('<span class="num">'+escapeHtml(item.kilometrage)+' km</span>');
       if(item.materiel) meta.push('<span>Matériel : '+escapeHtml(item.materiel)+'</span>');
     }
-    var photos = (item.photos||[]).map(function(p){
-      var url = (p && typeof p === "object") ? p.url : p;
-      return '<img src="'+url+'" data-full="'+url+'" alt="Photo intervention">';
-    }).join("");
     var actions = actionsHtml(item);
     if(confirming){
       actions = actions.replace('class="btn-delete"', 'class="btn-delete danger-confirm"').replace('>Supprimer<', '>Confirmer ?<');
@@ -1368,14 +1284,10 @@
         (item.description ? '<div class="card-desc"><b>Signalé :</b> '+escapeHtml(item.description)+'</div>' : '') +
         (hasReport && item.compteRendu ? '<div class="card-desc card-report"><b>Compte-rendu :</b> '+escapeHtml(item.compteRendu)+'</div>' : '') +
         '<div class="card-meta">'+meta.join("")+'</div>' +
-        (photos ? '<div class="card-photos">'+photos+'</div>' : '') +
         '<div class="card-actions">'+actions+'</div>' +
       '</div>'
     );
   }
-
-  $("#lightboxClose").addEventListener("click", function(){ $("#lightbox").hidden = true; });
-  $("#lightbox").addEventListener("click", function(e){ if(e.target === this) this.hidden = true; });
 
   // ---------- capability wiring ----------
   function subscribeInterventions(db){
@@ -1394,25 +1306,6 @@
     }, function(){});
   }
 
-  // ---------- adaptateur photos (Firebase Storage) ----------
-  function makeAssetsAdapter(storage){
-    return {
-      upload: function(file){
-        var safeName = (file.name || "photo").replace(/[^a-zA-Z0-9.\-_]/g, "_");
-        var path = "depan_photos/" + Date.now() + "_" + Math.random().toString(36).slice(2) + "_" + safeName;
-        var ref = storage.ref().child(path);
-        return ref.put(file).then(function(snap){
-          return snap.ref.getDownloadURL().then(function(url){
-            return { id: path, url: url };
-          });
-        });
-      },
-      delete: function(id){
-        return storage.ref().child(id).delete();
-      }
-    };
-  }
-
   function boot(){
     if(!window.firebase || !firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey.indexOf("VOTRE_") === 0){
       setStatus("offline", "Firebase non configuré");
@@ -1425,7 +1318,6 @@
     try{
       if(!firebase.apps.length){ firebase.initializeApp(firebaseConfig); }
       state.dbNS = firebase.firestore();
-      state.assetsNS = makeAssetsAdapter(firebase.storage());
       setStatus("online", "Connecté");
       subscribeInterventions(state.dbNS);
       subscribeClients(state.dbNS);
