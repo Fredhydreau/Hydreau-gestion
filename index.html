@@ -204,6 +204,7 @@
   select.status-select.attente{color:var(--warn-ink);} select.status-select.probleme{color:var(--crit-ink);}
   select.status-select.low{color:var(--warn-ink);} select.status-select.rupture{color:var(--crit-ink);}
   .plan-job-input, .plan-client-select{border-left:3px solid var(--c, var(--brand-teal)); padding-left:8px; border-radius:0 6px 6px 0;}
+  select.plan-client-select{color:var(--c, var(--brand-teal)); font-size:13.5px;}
   .stock-inputs{display:flex; gap:4px;}
   .stock-inputs .num-input{width:auto; flex:1; min-width:0;}
   .logi-day-cell{display:flex; gap:4px;}
@@ -2407,7 +2408,11 @@
     var html = PLAN_SPECIAL_OPTIONS.map(function(o){
       return '<option value="' + o.v + '"' + (o.v === selected ? " selected" : "") + '>' + o.label + '</option>';
     }).join("");
-    var chantiers = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); });
+    var chantiers = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
+      // Seuls les chantiers cochés « À planifier » proposés dans le planning — sauf le chantier
+      // déjà affecté à cette case, pour ne jamais faire disparaître une affectation existante.
+      return !!c.planifier || c.id === selected;
+    });
     html += chantiers.map(function(c){
       return '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + '>' + c.client + " · " + c.commune + '</option>';
     }).join("");
