@@ -597,12 +597,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <script>
   var firebaseConfig = {
-    apiKey: "VOTRE_API_KEY",
-    authDomain: "VOTRE_PROJET.firebaseapp.com",
-    projectId: "VOTRE_PROJET",
-    storageBucket: "VOTRE_PROJET.appspot.com",
-    messagingSenderId: "VOTRE_MESSAGING_ID",
-    appId: "VOTRE_APP_ID"
+    apiKey: "AIzaSyAGxiK2UO1FSe_bwDNUPFwrkAPfM4-y5XQ",
+    authDomain: "gestion-hydreau.firebaseapp.com",
+    projectId: "gestion-hydreau",
+    storageBucket: "gestion-hydreau.firebasestorage.app",
+    messagingSenderId: "432954249621",
+    appId: "1:432954249621:web:0ec25a0800c804c86de69c"
   };
 </script>
 
@@ -813,7 +813,7 @@
     btn.textContent = "Création…";
     setFormMsg("", "");
 
-    state.dbNS.collection("interventions").add(payload).then(function(){
+    state.dbNS.collection("depan_interventions").add(payload).then(function(){
       $("#interventionForm").reset();
       $("#f-date").value = todayISO();
       $("#f-date-appel").value = todayISO();
@@ -861,7 +861,7 @@
     var tel = $("#nc-tel").value.trim();
     var btn = $("#addClientBtn");
     btn.disabled = true;
-    state.dbNS.collection("clients").add({
+    state.dbNS.collection("depan_clients").add({
       nom: nom, commune: commune, adresse: adresse, telephone: tel, createdAt: new Date().toISOString()
     }).then(function(){
       $("#f-client").value = nom;
@@ -919,7 +919,7 @@
         var id = btn.getAttribute("data-id");
         if(state.confirmingClientDelete === id){
           if(state.dbNS){
-            state.dbNS.doc("clients/"+id).delete()
+            state.dbNS.doc("depan_clients/"+id).delete()
               .then(function(){ showToast("Client supprimé"); })
               .catch(function(){ showToast("Suppression impossible (lecture seule)"); });
           }
@@ -1089,7 +1089,7 @@
       if(billBtn){
         billBtn.addEventListener("click", function(){
           if(!state.dbNS) return;
-          state.dbNS.doc("interventions/"+item.id).update({facture: true, updatedAt: new Date().toISOString()})
+          state.dbNS.doc("depan_interventions/"+item.id).update({facture: true, updatedAt: new Date().toISOString()})
             .then(function(){ showToast("Marquée facturée"); })
             .catch(function(){ showToast("Action impossible (lecture seule)"); });
         });
@@ -1098,7 +1098,7 @@
       if(unbillBtn){
         unbillBtn.addEventListener("click", function(){
           if(!state.dbNS) return;
-          state.dbNS.doc("interventions/"+item.id).update({facture: false, updatedAt: new Date().toISOString()})
+          state.dbNS.doc("depan_interventions/"+item.id).update({facture: false, updatedAt: new Date().toISOString()})
             .then(function(){ showToast("Facturation annulée"); })
             .catch(function(){ showToast("Action impossible (lecture seule)"); });
         });
@@ -1114,7 +1114,7 @@
         delBtn.addEventListener("click", function(){
           if(state.confirmingDelete === item.id){
             if(state.dbNS){
-              state.dbNS.doc("interventions/"+item.id).delete()
+              state.dbNS.doc("depan_interventions/"+item.id).delete()
                 .then(function(){ showToast("Intervention supprimée"); })
                 .catch(function(){ showToast("Suppression impossible (lecture seule)"); });
             }
@@ -1139,7 +1139,7 @@
 
   function updateStatut(item, next, msg){
     if(!state.dbNS) return;
-    state.dbNS.doc("interventions/"+item.id).update({statut: next, updatedAt: new Date().toISOString()})
+    state.dbNS.doc("depan_interventions/"+item.id).update({statut: next, updatedAt: new Date().toISOString()})
       .then(function(){ showToast(msg); })
       .catch(function(){ showToast("Action impossible (lecture seule)"); });
   }
@@ -1173,7 +1173,7 @@
     btn.textContent = "Enregistrement…";
     var completingItem = state.interventions.find(function(i){ return i.id === completingItemId; });
     var finishedDate = (completingItem && completingItem.dateIntervention) ? completingItem.dateIntervention : todayISO();
-    state.dbNS.doc("interventions/"+completingItemId).update({
+    state.dbNS.doc("depan_interventions/"+completingItemId).update({
       statut: "termine",
       compteRendu: $("#cr-report").value.trim(),
       dureeHeures: parseFloat($("#cr-duree").value) || 0,
@@ -1246,7 +1246,7 @@
     var btn = $("#confirmEditBtn");
     btn.disabled = true;
     btn.textContent = "Enregistrement…";
-    state.dbNS.doc("interventions/"+editingItemId).update({
+    state.dbNS.doc("depan_interventions/"+editingItemId).update({
       client: client,
       telephone: $("#e-tel").value.trim(),
       commune: $("#e-commune").value.trim(),
@@ -1359,7 +1359,7 @@
 
   // ---------- capability wiring ----------
   function subscribeInterventions(db){
-    db.collection("interventions").orderBy("createdAt","desc").limit(500).onSnapshot(function(snap){
+    db.collection("depan_interventions").orderBy("createdAt","desc").limit(500).onSnapshot(function(snap){
       state.interventions = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
       renderStats();
       renderList();
@@ -1368,7 +1368,7 @@
     }, function(){ setStatus("offline", "Erreur de synchro"); });
   }
   function subscribeClients(db){
-    db.collection("clients").orderBy("nom","asc").limit(500).onSnapshot(function(snap){
+    db.collection("depan_clients").orderBy("nom","asc").limit(500).onSnapshot(function(snap){
       state.clients = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
       if(!$("#clientModal").hidden) renderClientList();
     }, function(){});
@@ -1379,7 +1379,7 @@
     return {
       upload: function(file){
         var safeName = (file.name || "photo").replace(/[^a-zA-Z0-9.\-_]/g, "_");
-        var path = "photos/" + Date.now() + "_" + Math.random().toString(36).slice(2) + "_" + safeName;
+        var path = "depan_photos/" + Date.now() + "_" + Math.random().toString(36).slice(2) + "_" + safeName;
         var ref = storage.ref().child(path);
         return ref.put(file).then(function(snap){
           return snap.ref.getDownloadURL().then(function(url){
