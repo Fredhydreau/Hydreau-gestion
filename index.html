@@ -272,6 +272,7 @@
   .track{height:9px; border-radius:5px; background:var(--surface-2); overflow:hidden;}
   .fill{height:100%; border-radius:5px;}
   .barrow .n{font-family:"IBM Plex Mono"; text-align:right; font-weight:600;}
+  .barlist-sep{margin-top:2px; padding-top:12px; border-top:1px solid var(--border); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-muted);}
 
   .stackbar{height:14px; border-radius:7px; overflow:hidden; display:flex; background:var(--surface-2); border:1px solid var(--border);}
   .stackbar span{height:100%;}
@@ -493,7 +494,7 @@
   .stock-add-btn:hover{border-color:var(--brand-teal); background:var(--brand-sky);}
   .rappel-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border);}
   .rappel-row:last-child{border-bottom:none;}
-  .rappel-text-input{flex:1; font:inherit; font-size:13px; font-weight:600; color:var(--crit-ink); word-break:break-word; border:1px solid transparent; background:none; border-radius:6px; padding:5px 7px; margin:-5px -7px;}
+  .rappel-text-input{flex:1; font:inherit; font-size:13px; font-weight:700; color:var(--crit-ink); word-break:break-word; border:1px solid transparent; background:none; border-radius:6px; padding:5px 7px; margin:-5px -7px;}
   .rappel-text-input:hover{border-color:var(--border);}
   .rappel-text-input:focus{border-color:var(--brand-teal); outline:none; background:var(--surface);}
   .rappel-date{font-size:11px; color:var(--ink-muted); white-space:nowrap; flex:none;}
@@ -1390,9 +1391,9 @@
   var FICHE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="2.6"/></svg>';
 
   var teamMeta = {
-    a:{label:"Équipe A", color:"var(--team-a)"}, b:{label:"Équipe B", color:"var(--team-b)"},
-    c:{label:"Équipe C", color:"var(--team-c)"}, d:{label:"Équipe D", color:"var(--team-d)"},
-    r1:{label:"Raccord. 1", color:"var(--racc-1)"}, r2:{label:"Raccord. 2", color:"var(--racc-2)"}
+    a:{label:"Massenza", color:"var(--team-a)"}, b:{label:"Stenuick", color:"var(--team-b)"},
+    c:{label:"603", color:"var(--team-c)"}, d:{label:"403", color:"var(--team-d)"},
+    r1:{label:"Guingamp", color:"var(--racc-1)"}, r2:{label:"Rennes", color:"var(--racc-2)"}
   };
   var statutMeta = {
     ok:{cls:"ok", label:"Terminé"}, cours:{cls:"cours", label:"En cours"},
@@ -1463,6 +1464,8 @@
   }
   var SEEDED_WEEKS = [getWeek(0), getWeek(1)];
   var TEAM_ORDER = ["a","b","c","d","r1","r2"];
+  var FORAGE_TEAM_ORDER = ["a","b","c","d"];
+  var RACC_TEAM_ORDER = ["r1","r2"];
   var PLANNING_ROWS_SEED = { s38:[], s39:[] };
   var LOGI_ROWS = ["logG", "logR"];
   var logiRowMeta = {
@@ -2438,7 +2441,7 @@
     var html = '<div class="plan-head-cell">Équipe</div>';
     days.forEach(function(d, di){ html += '<div class="plan-head-cell' + (di === days.length - 1 ? " plan-cell-last" : "") + '">' + d + "</div>"; });
 
-    TEAM_ORDER.forEach(function(team){
+    function renderTeamRow(team){
       var tm = teamMeta[team];
       html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + tm.color + '"></span>' + tm.label + "</div>";
       days.forEach(function(day, di){
@@ -2447,7 +2450,10 @@
         var lastCls = di === days.length - 1 ? " plan-cell-last" : "";
         html += '<div class="plan-cell' + lastCls + '">' + planClientCellHtml(id, cell.chantierId || "", tm.color) + "</div>";
       });
-    });
+    }
+    FORAGE_TEAM_ORDER.forEach(renderTeamRow);
+    html += '<div class="plan-section-label">Raccordement</div>';
+    RACC_TEAM_ORDER.forEach(renderTeamRow);
 
     html += '<div class="plan-section-label">Logistique — sorties dépôts</div>';
     LOGI_ROWS.forEach(function(key){
@@ -2795,7 +2801,8 @@
           if(cell.chantierId && cell.chantierId !== "_repli" && cell.chantierId !== "_conge") n++;
         });
         var pct = Math.round((n / days.length) * 100);
-        return '<div class="barrow"><span class="lbl"><span class="dot" style="background:' + tm.color + '"></span>' + tm.label + '</span><div class="track"><div class="fill" style="width:' + pct + '%; background:' + tm.color + '"></div></div><span class="n">' + n + '</span></div>';
+        var sep = (team === "r1") ? '<div class="barlist-sep">Raccordement</div>' : "";
+        return sep + '<div class="barrow"><span class="lbl"><span class="dot" style="background:' + tm.color + '"></span>' + tm.label + '</span><div class="track"><div class="fill" style="width:' + pct + '%; background:' + tm.color + '"></div></div><span class="n">' + n + '</span></div>';
       }).join("");
     }
 
