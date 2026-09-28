@@ -65,6 +65,14 @@ main{padding-block:16px}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;gap:6px;font-size:.95rem}
 .btn.primary{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 .btn.wa{background:#1F7A4D;border-color:#1F7A4D;color:#fff}
+.contacts{display:flex;flex-direction:column;gap:10px}
+.crow{display:grid;grid-template-columns:1fr 1.3fr auto auto;gap:8px;align-items:center}
+.crow .btn{padding:9px 10px}
+@media (max-width:560px){.crow{grid-template-columns:1fr 1fr;padding-bottom:10px;border-bottom:1px solid var(--line)}}
+.sendlist{display:flex;flex-direction:column;gap:8px}
+.sendrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sendrow .btn.wa{flex:1 1 200px;justify-content:center;padding:12px 16px}
+.btn.done-mark{opacity:.55}
 .btn.ghost{background:transparent}
 .btn.danger{color:var(--urgent);border-color:transparent;background:transparent}
 .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -144,11 +152,11 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
     <section id="view-settings" hidden>
       <div class="list">
         <div class="panel">
-          <h2>Salarié à prévenir</h2>
-          <div class="f"><label for="s-nom">Prénom</label><input id="s-nom" placeholder="Prénom du salarié"></div>
-          <div class="f"><label for="s-tel">Numéro WhatsApp du salarié</label><input id="s-tel" type="tel" inputmode="tel" placeholder="06 12 34 56 78"></div>
-          <div class="actions"><button class="btn primary" id="s-save">Enregistrer</button><a class="btn wa" id="s-test" href="#" target="_blank" rel="noopener">Tester WhatsApp</a></div>
-          <p class="hint" id="s-status">Le numéro sert pour WhatsApp et pour le SMS. Un numéro français (06, 07) est converti automatiquement.</p>
+          <h2>Personnes à prévenir</h2>
+          <p class="hint">Ajoutez autant de numéros WhatsApp que nécessaire. Un numéro français (06, 07) est converti automatiquement.</p>
+          <div id="s-rows" class="contacts"></div>
+          <div class="actions"><button class="btn" id="s-add">+ Ajouter un numéro</button><button class="btn primary" id="s-save">Enregistrer</button></div>
+          <p class="hint" id="s-status"></p>
         </div>
       </div>
     </section>
@@ -159,7 +167,7 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
 (function(){
   const $ = (s,r=document)=>r.querySelector(s);
   const STATUTS = {todo:{l:"À faire",c:"p-todo"}, wip:{l:"En cours",c:"p-wip"}, done:{l:"Terminée",c:"p-done"}};
-  let db=null, items=[], settings={nom:"",tel:""}, filter="open", lastCreated=null, editingCr=null;
+  let db=null, items=[], settings={contacts:[]}, filter="open", lastCreated=null, editingCr=null;
 
   function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
   function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2600);}
@@ -176,8 +184,14 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
     if(it.description) lines.push("Panne : "+it.description);
     return lines.join("\n");
   }
-  function waUrl(text){const n=cleanTel(settings.tel).replace(/^\+/,"");return n?"https://wa.me/"+n+"?text="+encodeURIComponent(text):null;}
-  function smsUrl(it){const n=cleanTel(settings.tel);return n?"sms:"+n+"?&body="+encodeURIComponent(message(it)):null;}
+
+  function contacts(){
+    if(Array.isArray(settings.contacts)) return settings.contacts.filter(c=>cleanTel(c.tel));
+    return settings.tel?[{nom:settings.nom||"",tel:settings.tel}]:[];
+  }
+  function waUrl(tel,text){const n=cleanTel(tel).replace(/^\+/,"");return n?"https://wa.me/"+n+"?text="+encodeURIComponent(text):null;}
+  function smsUrl(tel,text){const n=cleanTel(tel);return n?"sms:"+n+"?&body="+encodeURIComponent(text):null;}
+  const sentTo={};
 
   // ---- Tabs
   function show(v){
@@ -233,16 +247,18 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
     const box=$("#alertbox");
     const it=lastCreated&&items.find(i=>i.id===lastCreated);
     if(!it){box.innerHTML="";return;}
-    const su=smsUrl(it), wu=waUrl(message(it));
-    box.innerHTML=`<div class="alert"><h2>Prévenir ${esc(settings.nom||"le salarié")}</h2>
-      <p class="hint">Intervention <b>${esc(it.ref)}</b> enregistrée. Appuyez sur WhatsApp : le message est déjà écrit, il ne reste qu'à l'envoyer.</p>
+    const msg=message(it), cs=contacts(), sent=sentTo[it.id]||(sentTo[it.id]={});
+    const rows=cs.map((c,i)=>`<div class="sendrow"><a class="btn wa${sent[i]?" done-mark":""}" data-i="${i}" href="${esc(waUrl(c.tel,msg))}" target="_blank" rel="noopener">${sent[i]?"Envoyé à ":"WhatsApp "}${esc(c.nom||c.tel)}</a><a class="btn" href="${esc(smsUrl(c.tel,msg))}">SMS</a></div>`).join("");
+    box.innerHTML=`<div class="alert"><h2>Prévenir l'équipe</h2>
+      <p class="hint">Intervention <b>${esc(it.ref)}</b> enregistrée. Appuyez sur chaque bouton WhatsApp : le message est déjà écrit, il ne reste qu'à l'envoyer puis revenir ici.</p>
+      ${cs.length?`<div class="sendlist">${rows}</div>`:`<div class="actions"><button class="btn primary" data-go="settings">Ajouter les numéros à prévenir</button></div>`}
       <div class="actions">
-        ${wu?`<a class="btn wa" href="${esc(wu)}" target="_blank" rel="noopener" style="padding:13px 18px">Envoyer sur WhatsApp</a>`:`<button class="btn primary" data-go="settings">Ajouter le numéro du salarié</button>`}
-        ${su?`<a class="btn" href="${esc(su)}">Envoyer par SMS</a>`:""}
+        <a class="btn" href="https://wa.me/?text=${esc(encodeURIComponent(msg))}" target="_blank" rel="noopener">Envoyer à un groupe WhatsApp</a>
         <button class="btn" id="al-copy">Copier le message</button>
         <button class="btn ghost" id="al-close">Fermer</button>
       </div>
-      <div class="msgbox" id="al-msg">${esc(message(it))}</div></div>`;
+      <div class="msgbox" id="al-msg">${esc(msg)}</div></div>`;
+    box.querySelectorAll("a.wa[data-i]").forEach(a=>a.addEventListener("click",()=>{sent[a.dataset.i]=true;setTimeout(renderAlert,400);}));
     $("#al-close").onclick=()=>{lastCreated=null;renderAlert();};
     $("#al-copy").onclick=()=>copy(message(it),"#al-msg");
     const g=box.querySelector("[data-go]"); if(g) g.onclick=()=>show("settings");
@@ -251,7 +267,7 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
     renderFilters(); renderAlert();
     const l=visible();
     if(!items.length){
-      $("#list").innerHTML=`<div class="empty"><strong>Aucune intervention</strong>Créez le premier dépannage avec « + Nouvelle ». Le salarié sera prévenu par WhatsApp ou SMS.<div class="actions" style="justify-content:center;margin-top:12px"><button class="btn primary" data-go="new">Nouvelle intervention</button></div></div>`;
+      $("#list").innerHTML=`<div class="empty"><strong>Aucune intervention</strong>Créez le premier dépannage avec « + Nouvelle ». L'équipe sera prévenue par WhatsApp ou SMS.<div class="actions" style="justify-content:center;margin-top:12px"><button class="btn primary" data-go="new">Nouvelle intervention</button></div></div>`;
       $("#list").querySelector("[data-go]").onclick=()=>show("new");
       return;
     }
@@ -303,22 +319,32 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
   });
 
   // ---- Settings
-  function fillSettings(){
-    $("#s-nom").value=settings.nom||""; $("#s-tel").value=settings.tel||"";
+  function rowHtml(c){
+    return `<div class="crow"><input class="c-nom" placeholder="Prénom" value="${esc(c.nom||"")}" aria-label="Prénom"><input class="c-tel" type="tel" inputmode="tel" placeholder="06 12 34 56 78" value="${esc(c.tel||"")}" aria-label="Numéro WhatsApp"><a class="btn c-test" href="#" target="_blank" rel="noopener">Tester</a><button class="btn danger c-del" type="button">Retirer</button></div>`;
   }
+  function bindRows(){
+    $("#s-rows").querySelectorAll(".crow").forEach(r=>{
+      r.querySelector(".c-del").onclick=()=>{r.remove(); if(!$("#s-rows").children.length) addRow({});};
+      r.querySelector(".c-test").onclick=e=>{
+        const u=waUrl(r.querySelector(".c-tel").value,"Test Hydreau Forage : les alertes de dépannage arrivent bien sur WhatsApp.");
+        if(!u){e.preventDefault();$("#s-status").textContent="Saisissez d'abord le numéro.";return;}
+        e.currentTarget.href=u;
+      };
+    });
+  }
+  function addRow(c){$("#s-rows").insertAdjacentHTML("beforeend",rowHtml(c));bindRows();}
+  function fillSettings(){
+    const cs=contacts(); $("#s-rows").innerHTML=(cs.length?cs:[{}]).map(rowHtml).join(""); bindRows();
+  }
+  $("#s-add").onclick=()=>{addRow({}); const l=$("#s-rows").lastElementChild; if(l) l.querySelector("input").focus();};
   $("#s-save").onclick=async()=>{
-    const s={nom:$("#s-nom").value.trim(),tel:$("#s-tel").value.trim()};
-    if(s.tel && cleanTel(s.tel).replace(/\D/g,"").length<10){$("#s-status").textContent="Numéro incomplet : vérifiez-le.";return;}
-    try{ await db.doc("config/reglages").set(s); settings=s; fillSettings(); $("#s-status").textContent="Réglages enregistrés."; toast("Réglages enregistrés"); }
+    const list=[...$("#s-rows").querySelectorAll(".crow")].map(r=>({nom:r.querySelector(".c-nom").value.trim(),tel:r.querySelector(".c-tel").value.trim()})).filter(c=>c.nom||c.tel);
+    const bad=list.find(c=>cleanTel(c.tel).replace(/\D/g,"").length<10);
+    if(bad){$("#s-status").textContent="Numéro incomplet pour "+(bad.nom||"une ligne")+" : vérifiez-le.";return;}
+    const s={contacts:list};
+    try{ await db.doc("config/reglages").set(s); settings=s; fillSettings(); $("#s-status").textContent=list.length+" numéro(s) enregistré(s)."; toast("Réglages enregistrés"); }
     catch(e){ $("#s-status").textContent="Impossible d'enregistrer les réglages."; }
   };
-  $("#s-test").addEventListener("click",e=>{
-    const old=settings.tel; settings.tel=$("#s-tel").value.trim();
-    const u=waUrl("Test Hydreau Forage : les alertes de dépannage arrivent bien sur WhatsApp.");
-    settings.tel=old;
-    if(!u){e.preventDefault();$("#s-status").textContent="Saisissez d'abord le numéro du salarié.";return;}
-    e.currentTarget.href=u;
-  });
 
   function copy(text,sel){
     try{ navigator.clipboard.writeText(text).then(()=>toast("Copié"),()=>selectEl(sel)); }catch(e){ selectEl(sel); }
