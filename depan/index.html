@@ -120,6 +120,7 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
   </header>
 
   <main>
+    <div id="cloudwarn" class="notice" hidden></div>
     <div id="dbwarn" class="notice" hidden>Le navigateur bloque l'enregistrement (navigation privée ?). Les interventions ne seront pas conservées.</div>
 
     <section id="view-list">
@@ -151,6 +152,10 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
 
     <section id="view-settings" hidden>
       <div class="list">
+        <div class="panel" id="team-panel">
+          <h2>Synchronisation</h2>
+          <p class="hint" id="t-state"></p>
+        </div>
         <div class="panel">
           <h2>Personnes à prévenir</h2>
           <p class="hint">Ajoutez autant de numéros WhatsApp que nécessaire. Un numéro français (06, 07) est converti automatiquement.</p>
@@ -158,11 +163,41 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
           <div class="actions"><button class="btn" id="s-add">+ Ajouter un numéro</button><button class="btn primary" id="s-save">Enregistrer</button></div>
           <p class="hint" id="s-status"></p>
         </div>
+        <div class="panel">
+          <h2>Récupérer d'anciens dépannages</h2>
+          <p class="hint">Recherche dans ce navigateur les interventions enregistrées par une ancienne version de l'application, puis les ajoute à la liste. À faire sur l'appareil où les dépannages avaient été saisis.</p>
+          <div class="actions"><button class="btn primary" id="r-scan">Rechercher</button></div>
+          <div id="r-results" class="list"></div>
+        </div>
+        <div class="panel">
+          <h2>Sauvegarde</h2>
+          <p class="hint">Enregistrez régulièrement une copie de vos interventions. Elle permet de tout restaurer, même sur un autre appareil.</p>
+          <div class="actions"><button class="btn" id="b-export">Télécharger une sauvegarde</button><button class="btn" id="b-import-btn">Restaurer une sauvegarde</button><input type="file" id="b-file" accept=".json,application/json,text/plain" hidden></div>
+          <p class="hint" id="b-status"></p>
+        </div>
       </div>
     </section>
   </main>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ============================================================
+   CONFIGURATION FIREBASE (synchronisation entre appareils)
+   Collez ici l'objet firebaseConfig donné par la console Firebase.
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAGxiK2UO1FSe_bwDNUPFwrkAPfM4-y5XQ",
+  authDomain: "gestion-hydreau.firebaseapp.com",
+  projectId: "gestion-hydreau",
+  storageBucket: "gestion-hydreau.firebasestorage.app",
+  messagingSenderId: "432954249621",
+  appId: "1:432954249621:web:0ec25a0800c804c86de69c"
+};
+/* Identifiant de l'équipe : tous les appareils qui ouvrent cette page partagent ces données. Ne pas modifier. */
+const TEAM_ID = "hydreau-hhy0fskzrjb81f04";
+</script>
 <script>
 (function(){
   const $ = (s,r=document)=>r.querySelector(s);
@@ -351,6 +386,139 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
   }
   function selectEl(sel){const el=$(sel);if(!el)return;const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Texte sélectionné : copiez-le");}
 
+  // ---- Récupération d'anciennes données
+  function norm(k){return String(k).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");}
+  function pick(o,names){for(const k of Object.keys(o)){const n=norm(k);if(names.some(x=>n===x||n.includes(x))){const v=o[k];if(v!==null&&v!==undefined&&typeof v!=="object"&&String(v).trim()!=="")return String(v).trim();}}return "";}
+  function findLists(v,path,out,depth){
+    if(depth>4||!v||typeof v!=="object") return;
+    if(Array.isArray(v)){const objs=v.filter(x=>x&&typeof x==="object"&&!Array.isArray(x));if(objs.length&&objs.length>=v.length*0.8)out.push({path,list:objs});else v.forEach((x,i)=>findLists(x,path+"["+i+"]",out,depth+1));return;}
+    const vals=Object.values(v);
+    const objVals=vals.filter(x=>x&&typeof x==="object"&&!Array.isArray(x));
+    if(vals.length>=1&&objVals.length===vals.length&&objVals.every(x=>Object.values(x).some(y=>typeof y!=="object"))){out.push({path,list:objVals});return;}
+    Object.keys(v).forEach(k=>findLists(v[k],path?path+"."+k:k,out,depth+1));
+  }
+  function looksLikeIntervention(o){const ks=Object.keys(o).map(norm).join(" ");return /client|nom|adresse|commune|ville|panne|description|probleme|intervention|depannage|tel/.test(ks);}
+  function toIntervention(o,src){
+    const client=pick(o,["client","nomclient","nom","name","raisonsociale","societe"])||"Client sans nom";
+    const st=norm(pick(o,["statut","status","etat","state"]));
+    const statut=/termin|fini|done|clos|ferme|regle|complete/.test(st)?"done":/cours|wip|progress|demarr/.test(st)?"wip":"todo";
+    const urg=norm(pick(o,["urgence","urgent","priorite","priority"]));
+    let date=pick(o,["dateprevue","date","jour","day","planned"]);
+    const m=date.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/); if(m){date=(m[3].length===2?"20"+m[3]:m[3])+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");} else date=/^\d{4}-\d{2}-\d{2}/.test(date)?date.slice(0,10):"";
+    const used=new Set();
+    const desc=pick(o,["description","panne","probleme","details","detail","motif","objet","remarque","commentaire","notes","note"]);
+    const cr=pick(o,["compterendu","rapport","travaux","travauxrealises","resolution"]);
+    const created=Number(pick(o,["createdat","created","creation","timestamp"]))||Date.parse(pick(o,["createdat","created","creation"]))||(date?Date.parse(date):0)||Date.now();
+    const known=["client","nomclient","nom","name","raisonsociale","societe","statut","status","etat","state","urgence","urgent","priorite","priority","dateprevue","date","jour","day","planned","description","panne","probleme","details","detail","motif","objet","remarque","commentaire","notes","note","compterendu","rapport","travaux","travauxrealises","resolution","createdat","created","creation","timestamp","id","ref","reference","tel","telephone","phone","portable","mobile","adresse","address","rue","commune","ville","city","cp","codepostal","type","installation","materiel","equipement","updatedat"];
+    const extra=Object.keys(o).filter(k=>!known.some(x=>norm(k)===x)&&o[k]!==null&&typeof o[k]!=="object"&&String(o[k]).trim()!=="").map(k=>k+" : "+o[k]);
+    return {ref:pick(o,["ref","reference","numero","id"])?("ANC-"+pick(o,["ref","reference","numero","id"]).slice(0,20)):("ANC-"+String(created).slice(-6)),
+      client,telClient:pick(o,["telclient","telephone","tel","phone","portable","mobile"]),date,
+      adresse:pick(o,["adresse","address","rue"]),commune:[pick(o,["cp","codepostal"]),pick(o,["commune","ville","city"])].filter(Boolean).join(" "),
+      type:pick(o,["type","installation","materiel","equipement"])||"Autre",urgence:/urgent|haute|high|oui|true|1/.test(urg)?"urgente":"normale",
+      description:[desc,...extra].filter(Boolean).join("\n"),statut,compteRendu:cr,createdAt:created,updatedAt:Date.now(),importedFrom:src};
+  }
+  function scanStorage(){
+    const found=[];
+    let keys=[]; try{keys=Object.keys(localStorage);}catch(e){return found;}
+    keys.forEach(k=>{
+      if(k==="hydreau-depannages-v1") return;
+      let v; try{v=JSON.parse(localStorage.getItem(k));}catch(e){return;}
+      const lists=[]; findLists(v,"",lists,0);
+      lists.forEach(l=>{const ok=l.list.filter(looksLikeIntervention);if(ok.length) found.push({key:k,path:l.path,list:ok});});
+    });
+    return found;
+  }
+  let scanResults=[];
+  $("#r-scan").onclick=()=>{
+    scanResults=scanStorage();
+    const box=$("#r-results");
+    if(!scanResults.length){box.innerHTML=`<p class="hint">Aucune ancienne donnée trouvée dans ce navigateur. Essayez sur l'appareil et le navigateur où les dépannages avaient été saisis, avec la même adresse de page.</p>`;return;}
+    box.innerHTML=scanResults.map((r,i)=>{
+      const sample=r.list.slice(0,3).map(o=>esc(pick(o,["client","nomclient","nom","name"])||"(sans nom)")).join(", ");
+      const already=items.filter(it=>it.importedFrom===r.key+"|"+r.path).length;
+      return `<div class="card"><div><b>${r.list.length} intervention(s) trouvée(s)</b> <span class="ref">${esc(r.key)}${r.path?" › "+esc(r.path):""}</span></div>
+        <div class="hint">Exemples : ${sample}${r.list.length>3?"…":""}</div>
+        ${already?`<div class="hint">Déjà importées : ${already}</div>`:""}
+        <div class="actions"><button class="btn primary" data-imp="${i}">${already?"Importer à nouveau":"Importer"}</button></div></div>`;}).join("");
+    box.querySelectorAll("[data-imp]").forEach(b=>b.onclick=async()=>{
+      const r=scanResults[+b.dataset.imp], src=r.key+"|"+r.path; b.disabled=true;
+      const existing=new Set(items.filter(it=>it.importedFrom===src).map(it=>it.client+"|"+it.date+"|"+it.description));
+      let n=0;
+      for(const o of r.list){const it=toIntervention(o,src);if(existing.has(it.client+"|"+it.date+"|"+it.description))continue;await db.collection("interventions").doc().set(it);n++;}
+      b.textContent=n?n+" importée(s)":"Rien de nouveau"; toast(n+" intervention(s) récupérée(s)"); filter="all";
+    });
+  };
+
+  // ---- Sauvegarde / restauration
+  $("#b-export").onclick=()=>{
+    const data={app:"hydreau-depannages",version:1,exportedAt:new Date().toISOString(),settings,interventions:items.map(({_confirmDel,...i})=>i)};
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="sauvegarde-depannages-"+new Date().toISOString().slice(0,10)+".json";
+    document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);
+    $("#b-status").textContent=items.length+" intervention(s) sauvegardée(s).";
+  };
+  $("#b-import-btn").onclick=()=>$("#b-file").click();
+  $("#b-file").onchange=async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    try{
+      const data=JSON.parse(await f.text());
+      const list=Array.isArray(data)?data:(data.interventions||[]);
+      const have=new Set(items.map(i=>i.ref+"|"+i.client));
+      let n=0;
+      for(const raw of list){ if(!raw||typeof raw!=="object") continue; const {id,_confirmDel,...it}=raw; const full=it.ref&&it.client&&it.statut?it:toIntervention(raw,"sauvegarde"); if(have.has(full.ref+"|"+full.client)) continue; await db.collection("interventions").doc(id||undefined).set(full); n++; }
+      if(data.settings&&!contacts().length){ await db.doc("config/reglages").set(data.settings); settings=data.settings; fillSettings(); }
+      $("#b-status").textContent=n+" intervention(s) restaurée(s)."; toast(n+" intervention(s) restaurée(s)");
+    }catch(err){ $("#b-status").textContent="Ce fichier n'est pas une sauvegarde valide."; }
+    e.target.value="";
+  };
+
+  // ---- Synchronisation Firebase
+  const CODE_KEY="hydreau-code-equipe";
+  function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+  function lsSet(k,v){try{v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}}
+  function firebaseReady(){return typeof firebase!=="undefined"&&FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey&&FIREBASE_CONFIG.projectId;}
+  function startCloud(){
+    const code=TEAM_ID;
+    if(!firebaseReady()) return null;
+    try{
+      if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      const fs=firebase.firestore();
+      try{ fs.enablePersistence({synchronizeTabs:true}).catch(()=>{}); }catch(e){}
+      const base=fs.collection("equipes").doc(code);
+      const fail=e=>{console.error(e);toast("Échec de synchronisation");};
+      // Les écritures sont appliquées tout de suite sur l'appareil, puis envoyées dès que le réseau revient.
+      const wrap=ref=>({id:ref.id,path:ref.path,
+        get:()=>ref.get().then(d=>({id:d.id,exists:d.exists,data:()=>d.data()})),
+        set:d=>{ref.set(d).catch(fail);return Promise.resolve();},
+        update:d=>{ref.update(d).catch(fail);return Promise.resolve();},
+        delete:()=>{ref.delete().catch(fail);return Promise.resolve();},
+        onSnapshot:(f,e)=>ref.onSnapshot(d=>f({id:d.id,exists:d.exists,data:()=>d.data(),metadata:d.metadata}),e)});
+      return {cloud:true,persistent:true,
+        doc(p){const [c,d]=p.split("/");return wrap(base.collection(c).doc(d));},
+        collection(c){const col=base.collection(c);return {doc:id=>wrap(id?col.doc(id):col.doc()),onSnapshot:(f,e)=>col.onSnapshot({includeMetadataChanges:true},f,e)};}};
+    }catch(e){ console.error(e); return null; }
+  }
+  function showTeamState(on){
+    const w=$("#cloudwarn");
+    if(!firebaseReady()){
+      $("#t-state").textContent="La synchronisation n'est pas encore configurée : il faut coller la configuration Firebase dans le fichier index.html.";
+      w.textContent="Synchronisation non configurée : les interventions restent sur cet appareil."; w.hidden=false; return;
+    }
+    $("#t-state").textContent=on?"Tous les appareils qui ouvrent cette page partagent automatiquement les mêmes interventions.":"Connexion impossible au serveur de synchronisation.";
+    w.hidden=on; if(!on){w.textContent="Connexion impossible au serveur de synchronisation.";}
+  }
+  // Envoie une seule fois vers le cloud les interventions déjà saisies sur cet appareil
+  function migrateLocal(local,cloud){
+    const flag="hydreau-migre-"+TEAM_ID;
+    if(lsGet(flag)) return;
+    let store={}; try{store=JSON.parse(lsGet("hydreau-depannages-v1")||"{}")||{};}catch(e){}
+    const ids=Object.keys(store).filter(k=>k.startsWith("interventions/"));
+    ids.forEach(k=>cloud.doc(k).set(store[k]));
+    if(store["config/reglages"]){ cloud.doc("config/reglages").get().then(d=>{ if(!d.exists) cloud.doc("config/reglages").set(store["config/reglages"]); }).catch(()=>{}); }
+    lsSet(flag,"1");
+    if(ids.length) toast(ids.length+" intervention(s) de cet appareil envoyée(s) à l'équipe");
+  }
+
   // ---- Stockage local (navigateur de cet appareil)
   function localDB(){
     const KEY="hydreau-depannages-v1";
@@ -386,16 +554,20 @@ code{font:500 .9em var(--mono);background:var(--surface-2);padding:1px 5px;borde
   // ---- Data
   render();
   (async()=>{
-    db = localDB();
-    if(!db.persistent) $("#dbwarn").hidden=false;
-    $("#sync").textContent="enregistré sur cet appareil";
+    const local = localDB();
+    const cloud = startCloud();
+    db = cloud || local;
+    showTeamState(!!cloud);
+    if(cloud){ migrateLocal(local, cloud); }
+    else { if(!local.persistent) $("#dbwarn").hidden=false; $("#sync").textContent="cet appareil uniquement"; }
     db.doc("config/reglages").onSnapshot(s=>{ if(s.exists){ settings={...settings,...s.data()}; if(!$("#view-settings").hidden) fillSettings(); renderAlert(); } },()=>{});
     db.collection("interventions").onSnapshot(snap=>{
       const conf={}; items.forEach(i=>{if(i._confirmDel)conf[i.id]=true;});
       items=snap.docs.map(d=>({...d.data(),id:d.id,_confirmDel:!!conf[d.id]}));
+      if(db.cloud) $("#sync").textContent=snap.metadata.hasPendingWrites?"en attente de réseau…":snap.metadata.fromCache?"hors ligne":"synchronisé";
       if(editingCr) return; // ne pas écraser une saisie en cours
       render();
-    },()=>{ $("#sync").textContent="déconnecté"; });
+    },err=>{ $("#sync").textContent="erreur de synchronisation"; const w=$("#cloudwarn"); w.textContent="Synchronisation refusée par le serveur. Vérifiez le code équipe et les règles Firestore."; w.hidden=false; });
   })();
 })();
 </script>
