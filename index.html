@@ -419,6 +419,22 @@
   .vm-btn{background:transparent; border:none; border-radius:7px; padding:7px 12px; font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
   .vm-btn:hover{background:var(--surface-3);}
   .vm-btn.active{background:var(--brand-teal); color:#fff;}
+  .pdf-export-wrap{position:relative;}
+  .pdf-export-menu{
+    position:absolute; top:calc(100% + 8px); right:0; z-index:30; width:250px;
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    box-shadow:var(--shadow-soft); padding:12px;
+  }
+  .pdf-export-menu-title{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-muted); margin-bottom:8px;}
+  .pdf-export-menu-list{display:flex; flex-direction:column; gap:2px; max-height:260px; overflow-y:auto;}
+  .pdf-export-check{display:flex; align-items:center; gap:9px; padding:6px 4px; border-radius:7px; cursor:pointer; font-size:13px; font-weight:600;}
+  .pdf-export-check:hover{background:var(--surface-2);}
+  .pdf-export-check input{flex:none; width:15px; height:15px; accent-color:var(--brand-teal); cursor:pointer;}
+  .pdf-export-check .dot{width:9px;height:9px;border-radius:3px; flex:none;}
+  .pdf-export-menu-actions{display:flex; align-items:center; gap:10px; margin-top:11px; padding-top:11px; border-top:1px solid var(--border);}
+  .link-btn{background:none; border:none; color:var(--brand-teal-ink); font-size:12px; font-weight:700; cursor:pointer; padding:2px 0;}
+  .link-btn:hover{text-decoration:underline;}
+  .pdf-export-menu-actions .btn-primary{padding:7px 13px; font-size:12.5px;}
   .plan-week-label{grid-column:1 / -1; background:var(--surface-4, var(--surface-3)); padding:9px 10px; font-size:11.5px; font-weight:700; color:var(--ink); border-top:2px solid var(--brand-teal); border-bottom:1px solid var(--border);}
   .plan-week-label:first-child{border-top:none;}
   .plan-grid-inner.mode-2weeks{grid-template-columns:150px repeat(10,1fr); min-width:1500px;}
@@ -823,10 +839,21 @@
             <button type="button" class="vm-btn" data-mode="2weeks">2 semaines</button>
             <button type="button" class="vm-btn" data-mode="month">Mois</button>
           </div>
-          <button class="btn-secondary" id="planPdfBtn" style="margin-left:auto;" title="Exporter un PDF par équipe (forage + raccordement) avec les infos clients">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 21h14"/></svg>
-            Exporter PDF
-          </button>
+          <div class="pdf-export-wrap" style="margin-left:auto;">
+            <button class="btn-secondary" id="planPdfBtn" title="Choisir les équipes à exporter en PDF">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+              Exporter PDF
+            </button>
+            <div class="pdf-export-menu" id="planPdfMenu" hidden>
+              <div class="pdf-export-menu-title">Équipes à exporter</div>
+              <div class="pdf-export-menu-list" id="planPdfMenuList"><!-- injected by JS --></div>
+              <div class="pdf-export-menu-actions">
+                <button type="button" class="link-btn" id="planPdfSelectAll">Tout</button>
+                <button type="button" class="link-btn" id="planPdfSelectNone">Aucune</button>
+                <button type="button" class="btn-primary" id="planPdfConfirm" style="margin-left:auto;">Télécharger</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="hint" style="margin:-4px 0 12px;">Choisir le client dans la liste &middot; « + Nouveau chantier » crée sa fiche sans quitter le planning &middot; logistique et divers intégrés sous les équipes</div>
 
@@ -2843,9 +2870,50 @@
     }
   }
 
+  var ALL_TEAM_EXPORT_ROWS = [];
+  FORAGE_TEAM_ORDER.forEach(function(team){ ALL_TEAM_EXPORT_ROWS.push({key:team, label:teamMeta[team].label, rgb:PDF_TEAM_RGB[team], color:teamMeta[team].color}); });
+  RACC_TEAM_ORDER.forEach(function(team){ ALL_TEAM_EXPORT_ROWS.push({key:team, label:teamMeta[team].label, rgb:PDF_TEAM_RGB[team], color:teamMeta[team].color}); });
+
   var planPdfBtnEl = document.getElementById("planPdfBtn");
+  var planPdfMenuEl = document.getElementById("planPdfMenu");
+  var planPdfMenuListEl = document.getElementById("planPdfMenuList");
+  var planPdfWrapEl = document.querySelector(".pdf-export-wrap");
+
+  if(planPdfMenuListEl){
+    planPdfMenuListEl.innerHTML = ALL_TEAM_EXPORT_ROWS.map(function(row){
+      return '<label class="pdf-export-check"><input type="checkbox" class="pdf-export-cb" value="' + row.key + '" checked><span class="dot" style="background:' + row.color + '"></span>' + row.label + '</label>';
+    }).join("");
+  }
+
+  function closePlanPdfMenu(){ if(planPdfMenuEl) planPdfMenuEl.hidden = true; }
+  function openPlanPdfMenu(){ if(planPdfMenuEl) planPdfMenuEl.hidden = false; }
+
   if(planPdfBtnEl){
-    planPdfBtnEl.addEventListener("click", function(){
+    planPdfBtnEl.addEventListener("click", function(e){
+      e.stopPropagation();
+      if(planPdfMenuEl.hidden){ openPlanPdfMenu(); } else { closePlanPdfMenu(); }
+    });
+  }
+  document.addEventListener("click", function(e){
+    if(planPdfWrapEl && !planPdfWrapEl.contains(e.target)){ closePlanPdfMenu(); }
+  });
+  var planPdfSelectAllBtn = document.getElementById("planPdfSelectAll");
+  var planPdfSelectNoneBtn = document.getElementById("planPdfSelectNone");
+  if(planPdfSelectAllBtn) planPdfSelectAllBtn.addEventListener("click", function(){
+    document.querySelectorAll(".pdf-export-cb").forEach(function(cb){ cb.checked = true; });
+  });
+  if(planPdfSelectNoneBtn) planPdfSelectNoneBtn.addEventListener("click", function(){
+    document.querySelectorAll(".pdf-export-cb").forEach(function(cb){ cb.checked = false; });
+  });
+
+  var planPdfConfirmBtn = document.getElementById("planPdfConfirm");
+  if(planPdfConfirmBtn){
+    planPdfConfirmBtn.addEventListener("click", function(){
+      var selectedKeys = Array.prototype.slice.call(document.querySelectorAll(".pdf-export-cb:checked")).map(function(cb){ return cb.value; });
+      if(!selectedKeys.length){ showToast("Choisis au moins une équipe à exporter"); return; }
+      var exportRows = ALL_TEAM_EXPORT_ROWS.filter(function(row){ return selectedKeys.indexOf(row.key) !== -1; });
+      closePlanPdfMenu();
+
       var weeksArr, periodSlug, yearRef;
       if(planViewMode === "2weeks"){
         var wkA = getWeek(wkIndex), wkB = getWeek(Math.min(wkIndex + 1, MAX_WEEK_INDEX));
@@ -2865,10 +2933,6 @@
         periodSlug = planPdfSlug(wk.label);
       }
 
-      var exportRows = [];
-      FORAGE_TEAM_ORDER.forEach(function(team){ exportRows.push({key:team, label:teamMeta[team].label, rgb:PDF_TEAM_RGB[team]}); });
-      RACC_TEAM_ORDER.forEach(function(team){ exportRows.push({key:team, label:teamMeta[team].label, rgb:PDF_TEAM_RGB[team]}); });
-
       var failed = [];
       exportRows.forEach(function(row, idx){
         setTimeout(function(){
@@ -2878,7 +2942,7 @@
         }, idx * 350);
       });
       setTimeout(function(){
-        showToast(failed.length ? ("Échec de génération pour : " + failed.join(", ")) : (exportRows.length + " PDF générés (un par équipe)"));
+        showToast(failed.length ? ("Échec de génération pour : " + failed.join(", ")) : (exportRows.length + " PDF généré" + (exportRows.length > 1 ? "s" : "")));
       }, exportRows.length * 350 + 200);
     });
   }
