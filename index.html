@@ -415,6 +415,14 @@
   .weeknav button:hover{background:var(--surface-3);}
   .weeknav .wk{font-weight:700; font-size:13px; min-width:190px; text-align:center;}
   .weeknav .wk small{display:block; font-weight:500; color:var(--ink-muted); font-size:11px; margin-top:1px;}
+  .viewmode-switch{display:flex; align-items:center; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px;}
+  .vm-btn{background:transparent; border:none; border-radius:7px; padding:7px 12px; font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
+  .vm-btn:hover{background:var(--surface-3);}
+  .vm-btn.active{background:var(--brand-teal); color:#fff;}
+  .plan-week-label{grid-column:1 / -1; background:var(--surface-4, var(--surface-3)); padding:9px 10px; font-size:11.5px; font-weight:700; color:var(--ink); border-top:2px solid var(--brand-teal); border-bottom:1px solid var(--border);}
+  .plan-week-label:first-child{border-top:none;}
+  .plan-grid-inner.mode-2weeks{grid-template-columns:150px repeat(10,1fr); min-width:1500px;}
+  .plan-cell.wk-divider, .plan-head-cell.wk-divider{border-left:2px solid var(--brand-teal);}
 
   .plan-layout{display:grid; grid-template-columns:1fr 260px; gap:16px; align-items:start;}
   .plan-grid{background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:var(--shadow-soft);}
@@ -809,6 +817,11 @@
             <button id="wkNext" aria-label="Semaine suivante">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m10 6 6 6-6 6"/></svg>
             </button>
+          </div>
+          <div class="viewmode-switch" id="viewModeSwitch">
+            <button type="button" class="vm-btn active" data-mode="week">Semaine</button>
+            <button type="button" class="vm-btn" data-mode="2weeks">2 semaines</button>
+            <button type="button" class="vm-btn" data-mode="month">Mois</button>
           </div>
         </div>
         <div class="hint" style="margin:-4px 0 12px;">Choisir le client dans la liste &middot; « + Nouveau chantier » crée sa fiche sans quitter le planning &middot; logistique et divers intégrés sous les équipes</div>
@@ -2427,8 +2440,29 @@
     return diffWeeks;
   }
   var wkIndex = currentWeekIndex();
+  var planViewMode = "week"; /* "week" | "2weeks" | "month" */
   var days = ["Lun","Mar","Mer","Jeu","Ven"];
   var planGridEl = document.getElementById("planGrid");
+  function mondayForIndex(idx){ return new Date(WEEK_BASE_MONDAY.getTime() + idx * 7 * 24 * 3600 * 1000); }
+  function monthWeekIndexes(idx){
+    var monday = mondayForIndex(idx);
+    var month = monday.getMonth(), year = monday.getFullYear();
+    var start = idx;
+    while(start > 0){
+      var m = mondayForIndex(start - 1);
+      if(m.getMonth() === month && m.getFullYear() === year){ start--; } else { break; }
+    }
+    var list = [];
+    var i = start;
+    while(i <= MAX_WEEK_INDEX){
+      var m2 = mondayForIndex(i);
+      if(m2.getMonth() !== month || m2.getFullYear() !== year) break;
+      list.push(i);
+      i++;
+    }
+    return list;
+  }
+  function capitalizeFr(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
   var PLAN_SPECIAL_OPTIONS = [
     {v:"", label:"—"},
@@ -2467,66 +2501,135 @@
     return '<select class="cell-select field-input status-select ' + (logiStatut[v] ? logiStatut[v].cls : "attente") + '" data-col="planning" data-id="' + id + '" data-field="statut">' + opts + '</select>';
   }
 
-  function renderPlanning(fromRemote){
-    if(fromRemote && activeElInside(planGridEl)) return;
-    var wk = getWeek(wkIndex);
-    document.getElementById("wkLabel").innerHTML = wk.label + "<small>" + wk.range + "</small>";
-    document.getElementById("wkPrev").disabled = wkIndex === 0;
-    document.getElementById("wkNext").disabled = wkIndex === MAX_WEEK_INDEX;
-    var logiNote = document.getElementById("logiWeekNote");
-    if(logiNote){ logiNote.textContent = "— " + wk.label + " (" + wk.range + ")"; }
-
-    var html = '<div class="plan-head-cell">Équipe</div>';
-    days.forEach(function(d, di){ html += '<div class="plan-head-cell' + (di === days.length - 1 ? " plan-cell-last" : "") + '">' + d + "</div>"; });
-
-    function renderTeamRow(team){
-      var tm = teamMeta[team];
-      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + tm.color + '"></span><span class="team-label-text" style="color:' + tm.color + '">' + tm.label + "</span></div>";
-      days.forEach(function(day, di){
-        var id = wk.id + "-" + team + "-" + di;
-        var cell = state.planning[id] || {};
-        var lastCls = di === days.length - 1 ? " plan-cell-last" : "";
-        html += '<div class="plan-cell' + lastCls + '">' + planClientCellHtml(id, cell.chantierId || "", tm.color) + "</div>";
-      });
-    }
-    FORAGE_TEAM_ORDER.forEach(renderTeamRow);
-    html += '<div class="plan-section-label">Raccordement</div>';
-    RACC_TEAM_ORDER.forEach(renderTeamRow);
-
-    html += '<div class="plan-section-label">Divers</div>';
-    DIVERS_ROWS.forEach(function(key){
-      var dm = diversRowMeta[key];
-      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + dm.color + '"></span><span class="team-label-text" style="color:' + dm.color + '">' + dm.label + "</span></div>";
+  function weekRowCellsHtml(weeksArr, key, color, extraCls, cellRenderer){
+    var out = "";
+    weeksArr.forEach(function(wk, wi){
       days.forEach(function(day, di){
         var id = wk.id + "-" + key + "-" + di;
         var cell = state.planning[id] || {};
-        var lastCls = di === days.length - 1 ? " plan-cell-last" : "";
-        html += '<div class="plan-cell' + lastCls + '">' + planClientCellHtml(id, cell.chantierId || "", dm.color) + "</div>";
+        var isLast = (wi === weeksArr.length - 1 && di === days.length - 1);
+        var isDivider = (wi > 0 && di === 0);
+        var cls = "plan-cell" + (extraCls || "") + (isLast ? " plan-cell-last" : "") + (isDivider ? " wk-divider" : "");
+        out += '<div class="' + cls + '">' + cellRenderer(id, cell, color) + "</div>";
       });
     });
-
-    html += '<div class="plan-section-label">Logistique — sorties dépôts</div>';
-    LOGI_ROWS.forEach(function(key){
-      var lm = logiRowMeta[key];
-      html += '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + lm.color + '"></span><span class="team-label-text" style="color:' + lm.color + '">' + lm.label + "</span></div>";
-      days.forEach(function(day, di){
-        var id = wk.id + "-" + key + "-" + di;
-        var cell = state.planning[id] || {};
-        var lastCls = di === days.length - 1 ? " plan-cell-last" : "";
-        html += '<div class="plan-cell plan-logi-cell' + lastCls + '">'
-          + planClientCellHtml(id, cell.chantierId || "", lm.color)
+    return out;
+  }
+  function teamRowHtml(weeksArr, team){
+    var tm = teamMeta[team];
+    return '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + tm.color + '"></span><span class="team-label-text" style="color:' + tm.color + '">' + tm.label + "</span></div>"
+      + weekRowCellsHtml(weeksArr, team, tm.color, "", function(id, cell, color){ return planClientCellHtml(id, cell.chantierId || "", color); });
+  }
+  function diversRowHtml(weeksArr, key){
+    var dm = diversRowMeta[key];
+    return '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + dm.color + '"></span><span class="team-label-text" style="color:' + dm.color + '">' + dm.label + "</span></div>"
+      + weekRowCellsHtml(weeksArr, key, dm.color, "", function(id, cell, color){ return planClientCellHtml(id, cell.chantierId || "", color); });
+  }
+  function logiRowHtml(weeksArr, key){
+    var lm = logiRowMeta[key];
+    return '<div class="plan-cell plan-team-cell"><span class="dot" style="background:' + lm.color + '"></span><span class="team-label-text" style="color:' + lm.color + '">' + lm.label + "</span></div>"
+      + weekRowCellsHtml(weeksArr, key, lm.color, " plan-logi-cell", function(id, cell, color){
+        return planClientCellHtml(id, cell.chantierId || "", color)
           + '<input type="text" class="cell-input field-input plan-logi-mat" placeholder="Matériel" data-col="planning" data-id="' + id + '" data-field="mat" value="' + String(cell.mat || "").replace(/"/g, "&quot;") + '">'
-          + logiStatutSelectHtml(id, cell.statut)
-          + "</div>";
+          + logiStatutSelectHtml(id, cell.statut);
       });
+  }
+
+  function renderPlanning(fromRemote){
+    if(fromRemote && activeElInside(planGridEl)) return;
+
+    var rowGroups, numWeekCols, headerHtml, summaryWeek;
+    if(planViewMode === "2weeks"){
+      var wkA = getWeek(wkIndex), wkB = getWeek(Math.min(wkIndex + 1, MAX_WEEK_INDEX));
+      rowGroups = [{weeks:[wkA, wkB], label:null}];
+      numWeekCols = 2;
+      var mondayA = mondayForIndex(wkIndex);
+      var fridayB = new Date(mondayForIndex(wkIndex + 1).getTime() + 4 * 24 * 3600 * 1000);
+      headerHtml = "Semaines " + wkA.label.replace("Semaine ", "") + "–" + wkB.label.replace("Semaine ", "") + "<small>" + formatWeekRange(mondayA, fridayB) + "</small>";
+      summaryWeek = wkA;
+    } else if(planViewMode === "month"){
+      var idxs = monthWeekIndexes(wkIndex);
+      var weekObjs = idxs.map(getWeek);
+      rowGroups = weekObjs.map(function(w){ return {weeks:[w], label: w.label + " — " + w.range}; });
+      numWeekCols = 1;
+      var refMonday = mondayForIndex(wkIndex);
+      headerHtml = capitalizeFr(FR_MONTHS[refMonday.getMonth()]) + "<small>" + refMonday.getFullYear() + "</small>";
+      summaryWeek = weekObjs[0];
+    } else {
+      var wk = getWeek(wkIndex);
+      rowGroups = [{weeks:[wk], label:null}];
+      numWeekCols = 1;
+      headerHtml = wk.label + "<small>" + wk.range + "</small>";
+      summaryWeek = wk;
+    }
+
+    document.getElementById("wkLabel").innerHTML = headerHtml;
+    var wkPrevBtn = document.getElementById("wkPrev"), wkNextBtn = document.getElementById("wkNext");
+    if(planViewMode === "2weeks"){
+      wkPrevBtn.disabled = wkIndex === 0;
+      wkNextBtn.disabled = wkIndex >= MAX_WEEK_INDEX - 1;
+    } else if(planViewMode === "month"){
+      var mIdxs = monthWeekIndexes(wkIndex);
+      wkPrevBtn.disabled = mIdxs[0] === 0;
+      wkNextBtn.disabled = mIdxs[mIdxs.length - 1] === MAX_WEEK_INDEX;
+    } else {
+      wkPrevBtn.disabled = wkIndex === 0;
+      wkNextBtn.disabled = wkIndex === MAX_WEEK_INDEX;
+    }
+    var logiNote = document.getElementById("logiWeekNote");
+    if(logiNote){ logiNote.textContent = "— " + summaryWeek.label + " (" + summaryWeek.range + ")"; }
+
+    planGridEl.classList.toggle("mode-2weeks", numWeekCols === 2);
+
+    var html = '<div class="plan-head-cell">Équipe</div>';
+    for(var wi = 0; wi < numWeekCols; wi++){
+      (function(wi){
+        days.forEach(function(d, di){
+          var isLast = (wi === numWeekCols - 1 && di === days.length - 1);
+          var isDivider = (wi > 0 && di === 0);
+          html += '<div class="plan-head-cell' + (isLast ? " plan-cell-last" : "") + (isDivider ? " wk-divider" : "") + '">' + d + "</div>";
+        });
+      })(wi);
+    }
+
+    rowGroups.forEach(function(group){
+      if(group.label){ html += '<div class="plan-week-label">' + group.label + '</div>'; }
+      FORAGE_TEAM_ORDER.forEach(function(team){ html += teamRowHtml(group.weeks, team); });
+      html += '<div class="plan-section-label">Raccordement</div>';
+      RACC_TEAM_ORDER.forEach(function(team){ html += teamRowHtml(group.weeks, team); });
+      html += '<div class="plan-section-label">Divers</div>';
+      DIVERS_ROWS.forEach(function(key){ html += diversRowHtml(group.weeks, key); });
+      html += '<div class="plan-section-label">Logistique — sorties dépôts</div>';
+      LOGI_ROWS.forEach(function(key){ html += logiRowHtml(group.weeks, key); });
     });
 
     planGridEl.innerHTML = html;
-    renderLogiSummary(wk);
+    renderLogiSummary(summaryWeek);
     renderDashboard();
   }
-  document.getElementById("wkPrev").addEventListener("click", function(){ if(wkIndex > 0){ wkIndex--; renderPlanning(); } });
-  document.getElementById("wkNext").addEventListener("click", function(){ if(wkIndex < MAX_WEEK_INDEX){ wkIndex++; renderPlanning(); } });
+  function stepPlanning(dir){
+    if(planViewMode === "2weeks"){
+      wkIndex = Math.max(0, Math.min(MAX_WEEK_INDEX - 1, wkIndex + dir * 2));
+    } else if(planViewMode === "month"){
+      var weeks = monthWeekIndexes(wkIndex);
+      if(dir < 0){ wkIndex = Math.max(0, weeks[0] - 1); }
+      else { wkIndex = Math.min(MAX_WEEK_INDEX, weeks[weeks.length - 1] + 1); }
+    } else {
+      wkIndex = Math.max(0, Math.min(MAX_WEEK_INDEX, wkIndex + dir));
+    }
+    renderPlanning();
+  }
+  document.getElementById("wkPrev").addEventListener("click", function(){ stepPlanning(-1); });
+  document.getElementById("wkNext").addEventListener("click", function(){ stepPlanning(1); });
+  document.getElementById("viewModeSwitch").addEventListener("click", function(e){
+    var btn = e.target.closest(".vm-btn");
+    if(!btn) return;
+    var mode = btn.getAttribute("data-mode");
+    if(mode === planViewMode) return;
+    planViewMode = mode;
+    document.querySelectorAll("#viewModeSwitch .vm-btn").forEach(function(b){ b.classList.toggle("active", b === btn); });
+    renderPlanning();
+  });
 
   var LOGI_DEPOT_NAMES = { logG:"Guingamp", logR:"Rennes" };
   function renderLogiSummary(wk){
