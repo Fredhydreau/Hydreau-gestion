@@ -2416,7 +2416,17 @@
   });
 
   /* ================= PLANNING (équipes + logistique fusionnée) ================= */
-  var wkIndex = 0;
+  function currentWeekIndex(){
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var day = today.getDay() || 7; // lundi=1 ... dimanche=7
+    var thisMonday = new Date(today.getTime() - (day - 1) * 24 * 3600 * 1000);
+    var diffWeeks = Math.round((thisMonday.getTime() - WEEK_BASE_MONDAY.getTime()) / (7 * 24 * 3600 * 1000));
+    if(diffWeeks < 0) diffWeeks = 0;
+    if(diffWeeks > MAX_WEEK_INDEX) diffWeeks = MAX_WEEK_INDEX;
+    return diffWeeks;
+  }
+  var wkIndex = currentWeekIndex();
   var days = ["Lun","Mar","Mer","Jeu","Ven"];
   var planGridEl = document.getElementById("planGrid");
 
