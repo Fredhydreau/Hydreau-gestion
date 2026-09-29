@@ -1,4 +1,4 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Planning Forage & Raccordement</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1434,7 +1434,7 @@
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function(){ if(state.view==='gantt') safeRender(); }, 150);
   });
-  document.getElementById('btnToday').addEventListener('click', function(){ state.periodStart = startOfWeek(new Date()); render(); });
+  document.getElementById('btnToday').addEventListener('click', function(){ state.periodStart = startOfWeek(new Date()); state.daysShown = 7; render(); });
 
   document.getElementById('btnRefresh').addEventListener('click', function(){ loadOnce(true); });
 
@@ -1443,14 +1443,6 @@
     var cur = root.getAttribute('data-theme');
     var next = cur==='dark' ? 'light' : cur==='light' ? null : 'dark';
     if(next) root.setAttribute('data-theme', next); else root.removeAttribute('data-theme');
-  });
-
-  // Si la page reste ouverte et qu'on y revient une autre semaine, se recaler sur la semaine en cours.
-  var openedWeek = toISO(startOfWeek(new Date()));
-  document.addEventListener('visibilitychange', function(){
-    if(document.hidden) return;
-    var nowWeek = toISO(startOfWeek(new Date()));
-    if(nowWeek!==openedWeek){ openedWeek = nowWeek; state.periodStart = startOfWeek(new Date()); safeRender(); }
   });
 
   init();
