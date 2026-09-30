@@ -663,6 +663,11 @@
         <span class="lbl">Stock &amp; matériel</span>
         <span class="count" id="navStockCount">0</span>
       </button>
+      <button class="navitem" data-view="facturation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>
+        <span class="lbl">Facturation</span>
+        <span class="count" id="navImpayesCount" style="display:none;">0</span>
+      </button>
 
       <div class="navlabel">Exercice</div>
       <button class="navitem" data-view="stats">
@@ -841,6 +846,49 @@
           </table>
           </div>
           <div class="row-empty" id="tableEmpty" hidden>Aucun chantier ne correspond à ces filtres.</div>
+        </div>
+      </section>
+
+      <!-- ===================== FACTURATION ===================== -->
+      <section class="view" id="view-facturation">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+          <div class="viewmode-switch" id="factStatutSwitch">
+            <button type="button" class="vm-btn active" data-statut="all">Tous</button>
+            <button type="button" class="vm-btn" data-statut="impaye">Impayés</button>
+            <button type="button" class="vm-btn" data-statut="partiel">Payé partiel</button>
+            <button type="button" class="vm-btn" data-statut="facture">Facturé</button>
+            <button type="button" class="vm-btn" data-statut="paye">Payé</button>
+          </div>
+          <button class="btn-secondary" id="facturationPdfBtn" title="Exporter en PDF la situation de facturation affichée">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M14 3v5h5M6 21h12a2 2 0 0 0 2-2V8l-6-6H6a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2Z"/></svg>
+            Exporter PDF
+          </button>
+        </div>
+        <div class="hint" style="margin:-6px 0 14px;">Situation de facturation et de paiement de chaque client &middot; cliquer sur « Payé » ouvre la fiche pour ajouter ou consulter le détail des paiements &middot; les chantiers clôturés restent visibles ici tant qu'un solde reste dû</div>
+        <div class="tablecard">
+          <div class="tablewrap">
+          <table id="facturationTable">
+            <thead>
+              <tr>
+                <th>Client</th><th>Commune</th><th>Vendu par</th><th>Montant</th><th>Payé</th><th>Solde</th><th>Statut facturation</th><th>Clôturé</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- rows injected by JS -->
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="3" id="facturationFooterLabel">Total — 0 chantiers</td>
+                <td class="num" id="facturationFooterMontant">0&nbsp;€</td>
+                <td class="num" id="facturationFooterPaye">0&nbsp;€</td>
+                <td class="num" id="facturationFooterSolde">0&nbsp;€</td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+          </div>
+          <div class="row-empty" id="facturationEmpty" hidden>Aucun chantier ne correspond à ce filtre.</div>
         </div>
       </section>
 
@@ -1069,7 +1117,7 @@
         <div class="form-row"><label for="ncDeclaration">Date de déclaration</label><input type="text" id="ncDeclaration" placeholder="jj/mm/aaaa"></div>
         <div class="form-row-2">
           <div class="form-row"><label for="ncMontant">Montant (€)</label><input type="number" id="ncMontant" min="0" step="1"></div>
-          <div class="form-row"><label for="ncAcompte">Acompte (€)</label><input type="number" id="ncAcompte" min="0" step="1"></div>
+          <div class="form-row"><label for="ncAcompte">Acompte à la commande (€)</label><input type="number" id="ncAcompte" min="0" step="1"></div>
         </div>
         <div class="form-row-2">
           <div class="form-row"><label for="ncVendeur">Vendu par</label><input type="text" id="ncVendeur" placeholder="Nom du commercial"></div>
@@ -1166,6 +1214,16 @@
           <div class="form-row"><label for="ficheResponsable">Responsable du chantier</label><input type="text" class="field-input" id="ficheResponsable" data-col="chantiers" data-field="responsable"></div>
           <div class="form-row"><label for="ficheChauffagiste">Chauffagiste</label><input type="text" class="field-input" id="ficheChauffagiste" data-col="chantiers" data-field="chauffagiste"></div>
         </div>
+      </div>
+      <div class="fiche-section" id="ficheSectionPaiements">
+        <h4>Paiements reçus</h4>
+        <div class="debours-add">
+          <input type="text" id="paiementDateInput" class="field-input" placeholder="jj/mm/aaaa" style="flex:1;">
+          <input type="number" id="paiementMontantInput" class="field-input" placeholder="Montant €" min="0" step="0.01">
+          <button type="button" class="btn-secondary" id="paiementAddBtn">Ajouter</button>
+        </div>
+        <div class="debours-list" id="paiementsList"><!-- injected by JS --></div>
+        <div class="debours-total" id="paiementsTotal"><!-- injected by JS --></div>
       </div>
       <div class="fiche-section">
         <h4>Débours / matériaux utilisés</h4>
@@ -1356,6 +1414,7 @@
     chantiers:  ["Chantiers", "Chantiers suivis sur l'exercice 2026/27 — un chantier par client"],
     planning:   ["Planning", "4 équipes forage · 2 équipes raccordement · logistique & divers intégrés"],
     stock:      ["Stock & matériel", "Sondes, collecteurs et matériel de pompage"],
+    facturation:["Facturation", "Situation de facturation et de paiement par client"],
     stats:      ["Statistiques équipes", "Chiffre d'affaires et mètres forés par équipe — exercice 2026/27"]
   };
   navItems.forEach(function(btn){
@@ -1438,7 +1497,11 @@
       dict: false,
       ppsps: false,
       montant: Number(document.getElementById("ncMontant").value) || 0,
-      acompte: Number(document.getElementById("ncAcompte").value) || 0,
+      paiements: (function(){
+        var v = Number(document.getElementById("ncAcompte").value) || 0;
+        return v > 0 ? [{date: new Date().toLocaleDateString("fr-FR"), montant: v}] : [];
+      })(),
+      factStatut: "facture",
       vendeur: document.getElementById("ncVendeur").value.trim(),
       suivi: document.getElementById("ncSuivi").value.trim(),
       responsable: document.getElementById("ncResponsable").value.trim(),
@@ -1480,6 +1543,19 @@
     ok:{cls:"ok", label:"Terminé"}, cours:{cls:"cours", label:"En cours"},
     attente:{cls:"attente", label:"En attente"}, probleme:{cls:"probleme", label:"Problème"}
   };
+  var factStatutMeta = {
+    facture:{cls:"attente", label:"Facturé"}, partiel:{cls:"cours", label:"Payé partiel"},
+    paye:{cls:"ok", label:"Payé"}, impaye:{cls:"probleme", label:"Impayé"}
+  };
+  var FACT_STATUT_ORDER = ["facture", "partiel", "paye", "impaye"];
+  function factStatusSelectHtml(id, value, disabled){
+    var v = factStatutMeta[value] ? value : "facture";
+    var opts = FACT_STATUT_ORDER.map(function(k){
+      return '<option value="' + k + '"' + (v === k ? " selected" : "") + '>' + factStatutMeta[k].label + '</option>';
+    }).join("");
+    var cls = "cell-select field-input status-select " + factStatutMeta[v].cls;
+    return '<select class="' + cls + '" data-col="chantiers" data-id="' + id + '" data-field="factStatut"' + (disabled ? " disabled" : "") + '>' + opts + '</select>';
+  }
   var typeIcon = {
     "Géothermie":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v6M9 6l3-3 3 3"/><path d="M5 21c0-5 3-9 7-9s7 4 7 9"/></svg>',
     "Forage eau":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 4h4l-2 5-2 5H8L6 9 4 4h4"/><path d="M8 14v6M16 14v6"/></svg>',
@@ -1681,6 +1757,11 @@
     var label = n ? String(n) : '<span class="phase-na">à définir</span>';
     return '<button type="button" class="cell-link" data-fiche-id="' + c.id + '" data-fiche-scroll="sondes" title="Modifier dans la fiche">' + label + '</button>';
   }
+  function acompteCell(c){
+    var v = paiementsTotal(c);
+    var label = v ? eur(v) : "—";
+    return '<button type="button" class="cell-link" data-fiche-id="' + c.id + '" data-fiche-scroll="paiements" title="Voir / ajouter un paiement">' + label + '</button>';
+  }
   function sondesCell(c){
     if(c.type === "Pompage" || c.type === "Dépannage" || c.type === "Autre"){
       if(c.depth){ return '<span class="sondes-lbl">Intervention &middot; ' + c.depth + '&nbsp;m<span class="sondes-sub">' + c.type + '</span></span>'; }
@@ -1773,7 +1854,7 @@
     updateChantiersSortIndicator();
 
     chantiersTbody.innerHTML = rows.map(function(c){
-      var solde = c.montant - c.acompte;
+      var solde = (c.montant || 0) - paiementsTotal(c);
       return "<tr>"
         + '<td class="client"><button type="button" class="client-link" data-fiche-id="' + c.id + '">' + c.client + "</button></td>"
         + '<td class="commune">' + c.commune + ' <span class="dept">(' + c.dept + ")</span></td>"
@@ -1792,7 +1873,7 @@
         + '<td>' + boolToggleHtml(c.id, "ppsps", c.ppsps) + "</td>"
         + '<td>' + planCheckbox(c) + "</td>"
         + '<td class="num' + (c.montant ? "" : " zero") + '">' + (c.montant ? eur(c.montant) : "—") + "</td>"
-        + '<td class="num' + (c.acompte ? "" : " zero") + '">' + (c.acompte ? eur(c.acompte) : "—") + "</td>"
+        + '<td class="num' + (paiementsTotal(c) ? "" : " zero") + '">' + acompteCell(c) + "</td>"
         + '<td class="num' + (solde > 0 ? " due" : " zero") + '">' + (c.montant ? eur(solde) : "—") + "</td>"
         + '<td>' + boolToggleHtml(c.id, "archive", c.archive) + "</td>"
         + '<td>' + docsButton(c) + "</td>"
@@ -1814,7 +1895,7 @@
     var totalDepth = 0;
     all.forEach(function(c){ totalDepth += totalLongueur(c); });
     var montant = all.reduce(function(s, c){ return s + (c.montant || 0); }, 0);
-    var acompte = all.reduce(function(s, c){ return s + (c.acompte || 0); }, 0);
+    var acompte = all.reduce(function(s, c){ return s + paiementsTotal(c); }, 0);
     var solde = montant - acompte;
     var labelEl = document.getElementById("chantiersFooterLabel");
     var labelPrefix = chantiersTab === "closed" ? "Total clôturés — " : "Total — ";
@@ -1841,6 +1922,68 @@
     }
     renderChantiers();
   });
+
+  /* ================= FACTURATION ================= */
+  var facturationTbody = document.querySelector("#facturationTable tbody");
+  var facturationFilter = "all"; /* "all" | "facture" | "partiel" | "paye" | "impaye" */
+  var lastFacturationRows = [];
+  function renderFacturation(){
+    if(!facturationTbody) return;
+    var rows = sortedArray(state.chantiers, function(a, b){ return (a.client || "").localeCompare(b.client || "", "fr"); }).filter(function(c){
+      if(facturationFilter === "all") return true;
+      var st = factStatutMeta[c.factStatut] ? c.factStatut : "facture";
+      return st === facturationFilter;
+    });
+    lastFacturationRows = rows;
+
+    facturationTbody.innerHTML = rows.map(function(c){
+      var paye = paiementsTotal(c);
+      var solde = (c.montant || 0) - paye;
+      return "<tr>"
+        + '<td class="client"><button type="button" class="client-link" data-fiche-id="' + c.id + '">' + c.client + "</button></td>"
+        + '<td class="commune">' + c.commune + ' <span class="dept">(' + c.dept + ")</span></td>"
+        + "<td>" + (c.vendeur || "—") + "</td>"
+        + '<td class="num' + (c.montant ? "" : " zero") + '">' + (c.montant ? eur(c.montant) : "—") + "</td>"
+        + '<td class="num' + (paye ? "" : " zero") + '">' + acompteCell(c) + "</td>"
+        + '<td class="num' + (solde > 0 ? " due" : " zero") + '">' + (c.montant ? eur(solde) : "—") + "</td>"
+        + '<td>' + factStatusSelectHtml(c.id, c.factStatut) + "</td>"
+        + '<td>' + (c.archive ? '<span class="bool-pill yes" style="cursor:default;">Oui</span>' : '<span class="bool-pill no" style="cursor:default;">Non</span>') + "</td>"
+        + "</tr>";
+    }).join("");
+
+    var emptyEl = document.getElementById("facturationEmpty");
+    if(emptyEl) emptyEl.hidden = rows.length !== 0;
+
+    var count = rows.length;
+    var montant = rows.reduce(function(s, c){ return s + (c.montant || 0); }, 0);
+    var paye = rows.reduce(function(s, c){ return s + paiementsTotal(c); }, 0);
+    var solde = montant - paye;
+    var labelEl = document.getElementById("facturationFooterLabel");
+    if(labelEl) labelEl.textContent = "Total — " + count + " chantier" + (count > 1 ? "s" : "");
+    var mEl = document.getElementById("facturationFooterMontant"); if(mEl) mEl.textContent = eur(montant);
+    var pEl = document.getElementById("facturationFooterPaye"); if(pEl) pEl.textContent = eur(paye);
+    var sEl = document.getElementById("facturationFooterSolde"); if(sEl) sEl.textContent = eur(solde);
+
+    var navBadge = document.getElementById("navImpayesCount");
+    if(navBadge){
+      var impayesCount = sortedArray(state.chantiers, byOrder).filter(function(c){ return c.factStatut === "impaye"; }).length;
+      if(impayesCount > 0){ navBadge.style.display = ""; navBadge.textContent = String(impayesCount); }
+      else { navBadge.style.display = "none"; }
+    }
+  }
+  var factStatutSwitchEl = document.getElementById("factStatutSwitch");
+  if(factStatutSwitchEl){
+    factStatutSwitchEl.addEventListener("click", function(e){
+      var btn = e.target.closest(".vm-btn");
+      if(!btn) return;
+      var st = btn.getAttribute("data-statut");
+      if(st === facturationFilter) return;
+      facturationFilter = st;
+      document.querySelectorAll("#factStatutSwitch .vm-btn").forEach(function(b){ b.classList.toggle("active", b === btn); });
+      renderFacturation();
+    });
+  }
+
   function renderBacklog(){
     var el = document.getElementById("backlogList");
     if(!el) return;
@@ -2081,10 +2224,15 @@
   function renderFicheSteps(c){
     var el = document.getElementById("ficheSteps");
     if(!el) return;
-    var solde = (c.montant || 0) - (c.acompte || 0);
+    var paye = paiementsTotal(c);
+    var solde = (c.montant || 0) - paye;
     var factCls, factLabel;
-    if(c.montant && solde <= 0){ factCls = "done"; factLabel = "Soldé"; }
-    else if(c.acompte > 0){ factCls = "cours"; factLabel = "Acompte versé"; }
+    if(c.factStatut && factStatutMeta[c.factStatut]){
+      factCls = ficheStepClass(factStatutMeta[c.factStatut].cls);
+      factLabel = factStatutMeta[c.factStatut].label;
+    }
+    else if(c.montant && solde <= 0 && paye > 0){ factCls = "done"; factLabel = "Soldé"; }
+    else if(paye > 0){ factCls = "cours"; factLabel = "Acompte versé"; }
     else { factCls = ""; factLabel = "À faire"; }
     var steps = [
       {label:"Mandat", cls: c.mandat ? "done" : "", val: c.mandat ? "Signé" : "À signer"},
@@ -2115,7 +2263,8 @@
   }
   function renderFicheInfo(c){
     var grid = document.getElementById("ficheInfoGrid");
-    var solde = (c.montant || 0) - (c.acompte || 0);
+    var paye = paiementsTotal(c);
+    var solde = (c.montant || 0) - paye;
     var deptOpts = FICHE_DEPTS.map(function(d){ return '<option value="' + d + '"' + (c.dept === d ? " selected" : "") + '>' + d + '</option>'; }).join("");
     var typeOpts = FICHE_TYPES.map(function(t){ return '<option value="' + t + '"' + (c.type === t ? " selected" : "") + '>' + t + '</option>'; }).join("");
     var rows = [
@@ -2129,7 +2278,8 @@
       ["Statut du forage", statusSelectHtml(c.id, "forageStatut", c.forageStatut)],
       ["Raccordement", raccCell(c)],
       ["Montant (€)", '<input type="number" min="0" step="1" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="montant" data-numeric="1" value="' + (c.montant || 0) + '">'],
-      ["Acompte (€)", '<input type="number" min="0" step="1" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="acompte" data-numeric="1" value="' + (c.acompte || 0) + '">'],
+      ["Statut de facturation", factStatusSelectHtml(c.id, c.factStatut)],
+      ["Payé", eur(paye) + ' <span style="font-weight:400; color:var(--ink-muted); font-size:11.5px;">(voir « Paiements reçus » ci-dessous)</span>'],
       ["Solde", eur(solde)],
       ["Débours", eur(deboursTotal(c))],
       ["Marge", eur((c.montant || 0) - deboursTotal(c))]
@@ -2138,6 +2288,28 @@
   }
   function deboursTotal(c){
     return ((c && c.debours) || []).reduce(function(s, d){ return s + (d.montant || 0); }, 0);
+  }
+  /* Total réellement encaissé : la liste détaillée des paiements (date + montant) fait foi
+     dès qu'elle existe ; l'ancien champ « acompte » (un seul nombre) reste lu pour les
+     chantiers créés avant l'ajout de ce suivi détaillé, tant qu'aucun paiement n'y a été ajouté. */
+  function paiementsTotal(c){
+    if(c && c.paiements && c.paiements.length){
+      return c.paiements.reduce(function(s, p){ return s + (p.montant || 0); }, 0);
+    }
+    return (c && c.acompte) || 0;
+  }
+  function renderPaiementsList(c){
+    var listEl = document.getElementById("paiementsList");
+    var totalEl = document.getElementById("paiementsTotal");
+    if(!listEl) return;
+    var entries = (c.paiements || []);
+    listEl.innerHTML = entries.length ? entries.map(function(p, idx){
+      return '<div class="debours-row"><div class="dlabel"><span class="ddate">' + escapeHtml(p.date) + '</span>Paiement</div>'
+        + '<div class="dmontant">' + eur(p.montant) + '</div>'
+        + '<button type="button" class="ddel" data-paiement-idx="' + idx + '" title="Supprimer ce paiement" aria-label="Supprimer ce paiement">'
+        + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>';
+    }).join("") : '<div class="debours-empty">Aucun paiement enregistré pour l\'instant.</div>';
+    if(totalEl) totalEl.textContent = "Total encaissé : " + eur(paiementsTotal(c));
   }
   function renderDeboursList(c){
     var listEl = document.getElementById("deboursList");
@@ -2199,6 +2371,9 @@
     document.getElementById("deboursLabelInput").value = "";
     document.getElementById("deboursMontantInput").value = "";
     renderDeboursList(c);
+    document.getElementById("paiementDateInput").value = "";
+    document.getElementById("paiementMontantInput").value = "";
+    renderPaiementsList(c);
     document.getElementById("sondeQteInput").value = "";
     document.getElementById("sondeLongueurInput").value = "";
     renderSondeGroups(c);
@@ -2214,6 +2389,18 @@
           setTimeout(function(){ section.classList.remove("fiche-highlight"); }, 1600);
           var qteInput = document.getElementById("sondeQteInput");
           if(qteInput) qteInput.focus();
+        }
+      }, 50);
+    }
+    if(opts && opts.scrollTo === "paiements"){
+      setTimeout(function(){
+        var section = document.getElementById("ficheSectionPaiements");
+        if(section){
+          section.scrollIntoView({behavior:"smooth", block:"center"});
+          section.classList.add("fiche-highlight");
+          setTimeout(function(){ section.classList.remove("fiche-highlight"); }, 1600);
+          var montantInput = document.getElementById("paiementMontantInput");
+          if(montantInput) montantInput.focus();
         }
       }, 50);
     }
@@ -2260,6 +2447,48 @@
     newDebours.splice(idx, 1);
     patchDoc("chantiers", id, {debours:newDebours}, function(){
       if(currentFicheId === id){ renderDeboursList(state.chantiers[id]); renderFicheInfo(state.chantiers[id]); }
+      renderChantiers();
+    });
+  });
+  document.getElementById("paiementAddBtn").addEventListener("click", function(){
+    if(!currentFicheId) return;
+    var id = currentFicheId;
+    var c = state.chantiers[id];
+    if(!c) return;
+    var dateInput = document.getElementById("paiementDateInput");
+    var montantInput = document.getElementById("paiementMontantInput");
+    var date = (dateInput.value || "").trim() || new Date().toLocaleDateString("fr-FR");
+    var montant = parseFloat(montantInput.value);
+    if(!isFinite(montant) || montant <= 0) return;
+    var entry = { date: date, montant: montant };
+    var newPaiements = (c.paiements || []).slice();
+    /* Un chantier créé avant l'ajout de ce suivi détaillé peut avoir un acompte encaissé
+       via l'ancien champ unique : on le reporte dans la liste au premier ajout, pour ne
+       pas le faire disparaître du total encaissé. */
+    if(newPaiements.length === 0 && c.acompte > 0){
+      newPaiements.push({ date: "(reporté)", montant: c.acompte });
+    }
+    newPaiements.push(entry);
+    dateInput.value = "";
+    montantInput.value = "";
+    patchDoc("chantiers", id, {paiements:newPaiements}, function(){
+      if(currentFicheId === id){ renderPaiementsList(state.chantiers[id]); renderFicheInfo(state.chantiers[id]); renderFicheSteps(state.chantiers[id]); }
+      renderChantiers();
+    });
+  });
+  document.getElementById("paiementsList").addEventListener("click", function(e){
+    var btn = e.target.closest ? e.target.closest("[data-paiement-idx]") : null;
+    if(!btn) return;
+    if(!currentFicheId) return;
+    var id = currentFicheId;
+    var c = state.chantiers[id];
+    if(!c) return;
+    var idx = parseInt(btn.getAttribute("data-paiement-idx"), 10);
+    var newPaiements = (c.paiements || []).slice();
+    if(idx < 0 || idx >= newPaiements.length) return;
+    newPaiements.splice(idx, 1);
+    patchDoc("chantiers", id, {paiements:newPaiements}, function(){
+      if(currentFicheId === id){ renderPaiementsList(state.chantiers[id]); renderFicheInfo(state.chantiers[id]); renderFicheSteps(state.chantiers[id]); }
       renderChantiers();
     });
   });
@@ -3101,14 +3330,15 @@
         var rTop = y, rBottom = y - rowH;
         if(rowIdx % 2 === 1){ gray(0.965); fillRect(margin, rBottom, pageWidth - 2 * margin, rowH); gray(0); }
         var ty = rBottom + 6.5;
-        var solde = (c.montant || 0) - (c.acompte || 0);
+        var paye = paiementsTotal(c);
+        var solde = (c.montant || 0) - paye;
         text("F1", 9, CHANTIERS_PDF_COLS[0].x + 4, ty, pdfWrapText(c.client || "", 26)[0]);
         text("F2", 8.3, CHANTIERS_PDF_COLS[1].x + 4, ty, pdfWrapText((c.commune || "") + (c.dept ? " (" + c.dept + ")" : ""), 22)[0]);
         text("F2", 8.3, CHANTIERS_PDF_COLS[2].x + 4, ty, pdfWrapText(c.vendeur || "—", 18)[0]);
         text("F2", 8.3, CHANTIERS_PDF_COLS[3].x + 4, ty, pdfWrapText(c.type || "", 16)[0]);
         text("F2", 8.3, CHANTIERS_PDF_COLS[4].x + 4, ty, (statutMeta[c.forageStatut] && statutMeta[c.forageStatut].label) || "—");
         textR("F2", 8.3, CHANTIERS_PDF_COLS[5].x, CHANTIERS_PDF_COLS[5].w, ty, c.montant ? eur(c.montant) : "—");
-        textR("F2", 8.3, CHANTIERS_PDF_COLS[6].x, CHANTIERS_PDF_COLS[6].w, ty, c.acompte ? eur(c.acompte) : "—");
+        textR("F2", 8.3, CHANTIERS_PDF_COLS[6].x, CHANTIERS_PDF_COLS[6].w, ty, paye ? eur(paye) : "—");
         textR("F2", 8.3, CHANTIERS_PDF_COLS[7].x, CHANTIERS_PDF_COLS[7].w, ty, c.montant ? eur(solde) : "—");
         y = rBottom;
         rowIdx++;
@@ -3166,6 +3396,170 @@
       var suffix = chantiersTab === "closed" ? "_Clotures" : "";
       downloadBlob("Chantiers" + suffix + "_" + new Date().toISOString().slice(0, 10) + ".pdf", blob);
       showToast("PDF « Liste des chantiers » téléchargé");
+    });
+  }
+
+  /* ===== Export PDF de la situation de facturation (regroupée par statut, impayés en tête) ===== */
+  var FACT_PDF_COLORS = {
+    impaye:[211, 59, 59], partiel:[217, 143, 20], facture:[90, 110, 130], paye:[27, 175, 122]
+  };
+  var FACT_PDF_COLS = [
+    {key:"client",  label:"Client",           x:30,  w:170},
+    {key:"commune", label:"Commune",          x:200, w:130},
+    {key:"vendeur", label:"Vendu par",        x:330, w:100},
+    {key:"montant", label:"Montant",          x:430, w:90, align:"right"},
+    {key:"paye",    label:"Payé",             x:520, w:85, align:"right"},
+    {key:"solde",   label:"Solde",            x:605, w:85, align:"right"},
+    {key:"statut",  label:"Statut",           x:690, w:122}
+  ];
+  function facturationLines(rows){
+    var order = ["impaye", "partiel", "facture", "paye"];
+    var buckets = {impaye:[], partiel:[], facture:[], paye:[]};
+    rows.forEach(function(c){
+      var st = factStatutMeta[c.factStatut] ? c.factStatut : "facture";
+      buckets[st].push(c);
+    });
+    var lines = [];
+    order.forEach(function(st){
+      if(buckets[st].length){
+        lines.push({type:"group", label: factStatutMeta[st].label.toUpperCase() + " (" + buckets[st].length + ")", key:st});
+        buckets[st].forEach(function(c){ lines.push({type:"row", c:c}); });
+      }
+    });
+    return lines;
+  }
+  function buildFacturationPageContent(pageLines, pageWidth, pageHeight, margin, pageNum, totalPages, headMeta){
+    var ops = [];
+    function text(font, size, xx, yy, str){
+      ops.push("BT /" + font + " " + size + " Tf " + xx + " " + Math.round(yy * 100) / 100 + " Td (" + pdfWinAnsiString(str) + ") Tj ET");
+    }
+    function gray(g){ ops.push(g + " " + g + " " + g + " rg"); }
+    function rgbFill(r, g, b){ ops.push((Math.round(r / 255 * 1000) / 1000) + " " + (Math.round(g / 255 * 1000) / 1000) + " " + (Math.round(b / 255 * 1000) / 1000) + " rg"); }
+    function hline(x1, yy, x2){ ops.push("0.6 w " + x1 + " " + yy + " m " + x2 + " " + yy + " l S"); }
+    function fillRect(x, yb, w, h){ ops.push(x + " " + yb + " " + w + " " + h + " re f"); }
+    function image(objName, xx, yy, w, h){ ops.push("q " + w + " 0 0 " + h + " " + xx + " " + yy + " cm /" + objName + " Do Q"); }
+    function textR(font, size, colX, colW, yy, str, bold){
+      var w = pdfEstTextWidth(str, size, bold);
+      text(font, size, colX + colW - 6 - w, yy, str);
+    }
+
+    var logoW = 60;
+    var logoH = Math.round((logoW * LOGO_PDF_H / LOGO_PDF_W) * 100) / 100;
+    var logoTopY = pageHeight - margin;
+    var logoY = logoTopY - logoH;
+    image("Im1", margin, logoY, logoW, logoH);
+    var headTextX = margin + logoW + 14;
+    gray(0);
+    text("F1", 12.5, headTextX, logoTopY - 12, "HYDREAU FORAGE");
+    rgbFill(CHANTIERS_PDF_TEAL[0], CHANTIERS_PDF_TEAL[1], CHANTIERS_PDF_TEAL[2]);
+    text("F1", 16, headTextX, logoTopY - 31, "FACTURATION");
+    gray(0.3);
+    text("F1", 10, headTextX, logoTopY - 46, headMeta.line1);
+    gray(0.5);
+    var editedLabel = "Édité le " + new Date().toLocaleDateString("fr-FR") + (totalPages > 1 ? "   ·   Page " + pageNum + "/" + totalPages : "");
+    var editedLabelY = logoTopY - 59;
+    text("F2", 8.5, headTextX, editedLabelY, editedLabel);
+    gray(0);
+    var y = Math.min(logoY, editedLabelY - 8) - 10;
+    hline(margin, y, pageWidth - margin);
+    y -= 18;
+
+    gray(0.4);
+    FACT_PDF_COLS.forEach(function(cd){
+      if(cd.align === "right"){ textR("F1", 8.5, cd.x, cd.w, y, cd.label, true); }
+      else { text("F1", 8.5, cd.x + 4, y, cd.label); }
+    });
+    gray(0.75);
+    hline(margin, y - 6, pageWidth - margin);
+    gray(0);
+    y -= 6;
+
+    var rowH = 20, groupH = 22;
+    var rowIdx = 0;
+    pageLines.forEach(function(ln){
+      if(ln.type === "group"){
+        var gTop = y, gBottom = y - groupH;
+        var col = FACT_PDF_COLORS[ln.key] || CHANTIERS_PDF_TEAL;
+        gray(0.94);
+        fillRect(margin, gBottom, pageWidth - 2 * margin, groupH);
+        rgbFill(col[0], col[1], col[2]);
+        fillRect(margin, gTop - 2, pageWidth - 2 * margin, 2);
+        text("F1", 10, margin + 8, gBottom + 7, ln.label);
+        gray(0);
+        y = gBottom;
+        rowIdx = 0;
+      } else {
+        var c = ln.c;
+        var rTop = y, rBottom = y - rowH;
+        if(rowIdx % 2 === 1){ gray(0.965); fillRect(margin, rBottom, pageWidth - 2 * margin, rowH); gray(0); }
+        var ty = rBottom + 6.5;
+        var paye = paiementsTotal(c);
+        var solde = (c.montant || 0) - paye;
+        var st = factStatutMeta[c.factStatut] ? c.factStatut : "facture";
+        text("F1", 9, FACT_PDF_COLS[0].x + 4, ty, pdfWrapText(c.client || "", 28)[0]);
+        text("F2", 8.3, FACT_PDF_COLS[1].x + 4, ty, pdfWrapText((c.commune || "") + (c.dept ? " (" + c.dept + ")" : ""), 22)[0]);
+        text("F2", 8.3, FACT_PDF_COLS[2].x + 4, ty, pdfWrapText(c.vendeur || "—", 18)[0]);
+        textR("F2", 8.3, FACT_PDF_COLS[3].x, FACT_PDF_COLS[3].w, ty, c.montant ? eur(c.montant) : "—");
+        textR("F2", 8.3, FACT_PDF_COLS[4].x, FACT_PDF_COLS[4].w, ty, paye ? eur(paye) : "—");
+        textR("F2", 8.3, FACT_PDF_COLS[5].x, FACT_PDF_COLS[5].w, ty, c.montant ? eur(solde) : "—");
+        text("F2", 8.3, FACT_PDF_COLS[6].x + 4, ty, factStatutMeta[st].label);
+        y = rBottom;
+        rowIdx++;
+      }
+    });
+
+    return ops.join("\n");
+  }
+  function buildFacturationPdfBlob(rows, filterLabel){
+    try {
+      if(!rows.length) return null;
+      var pageWidth = 842, pageHeight = 595, margin = 30;
+      var logoW = 60;
+      var logoH = Math.round((logoW * LOGO_PDF_H / LOGO_PDF_W) * 100) / 100;
+      var logoTopY = pageHeight - margin;
+      var logoY = logoTopY - logoH;
+      var editedLabelY = logoTopY - 59;
+      var ruleY = Math.min(logoY, editedLabelY - 8) - 10;
+      var colHeaderY = ruleY - 18;
+      var tableTop = colHeaderY - 6;
+      var tableBottom = margin;
+      var availH = tableTop - tableBottom;
+      var rowH = 20, groupH = 22;
+
+      var lines = facturationLines(rows);
+      var pagesLines = [];
+      var cur = [], used = 0;
+      lines.forEach(function(ln){
+        var h = ln.type === "group" ? groupH : rowH;
+        if(used + h > availH && cur.length){ pagesLines.push(cur); cur = []; used = 0; }
+        cur.push(ln); used += h;
+      });
+      pagesLines.push(cur);
+
+      var montantTotal = rows.reduce(function(s, c){ return s + (c.montant || 0); }, 0);
+      var payeTotal = rows.reduce(function(s, c){ return s + paiementsTotal(c); }, 0);
+      var line1 = rows.length + " chantier" + (rows.length > 1 ? "s" : "") + "  ·  " + eur(payeTotal) + " encaissés sur " + eur(montantTotal) + (filterLabel ? "  ·  " + filterLabel : "");
+
+      var totalPages = pagesLines.length;
+      var pageContents = pagesLines.map(function(pl, idx){
+        return buildFacturationPageContent(pl, pageWidth, pageHeight, margin, idx + 1, totalPages, {line1:line1});
+      });
+      return assembleMultiPagePdf(pageContents, pageWidth, pageHeight);
+    } catch(err){
+      console.error("Facturation PDF build failed", err);
+      return null;
+    }
+  }
+  var facturationPdfBtnEl = document.getElementById("facturationPdfBtn");
+  if(facturationPdfBtnEl){
+    facturationPdfBtnEl.addEventListener("click", function(){
+      var rows = lastFacturationRows;
+      if(!rows || !rows.length){ showToast("Aucun chantier à exporter avec ce filtre"); return; }
+      var filterLabel = facturationFilter === "all" ? null : ("Filtre : " + factStatutMeta[facturationFilter].label);
+      var blob = buildFacturationPdfBlob(rows, filterLabel);
+      if(!blob){ showToast("Échec de la génération du PDF"); return; }
+      downloadBlob("Facturation_" + new Date().toISOString().slice(0, 10) + ".pdf", blob);
+      showToast("PDF « Facturation » téléchargé");
     });
   }
 
@@ -3406,6 +3800,7 @@
     setText("stockKpiLow", String(lowCount));
 
     renderDashboard();
+    renderFacturation();
   }
   function addStockRow(col, inputId, buildData){
     var input = document.getElementById(inputId);
@@ -3460,7 +3855,7 @@
     var chantiers = sortedArray(state.chantiers, byOrder).filter(function(c){ return !c.archive; });
     var count = chantiers.length;
     var montantTotal = chantiers.reduce(function(s, c){ return s + (c.montant || 0); }, 0);
-    var acompteTotal = chantiers.reduce(function(s, c){ return s + (c.acompte || 0); }, 0);
+    var acompteTotal = chantiers.reduce(function(s, c){ return s + paiementsTotal(c); }, 0);
     var pctEncaisse = montantTotal ? Math.round((acompteTotal / montantTotal) * 1000) / 10 : 0;
     var enAttente = chantiers.filter(function(c){ return c.forageStatut === "attente"; }).length;
 
@@ -3485,16 +3880,17 @@
     }
 
     var problemeChantiers = chantiers.filter(function(c){ return c.forageStatut === "probleme" || c.raccStatut === "probleme"; }).length;
+    var impayesChantiers = chantiers.filter(function(c){ return c.factStatut === "impaye"; }).length;
     var stockProblems = 0;
     sortedArray(state.stockSondes, byOrder).forEach(function(s){ if((s.besoin || 0) > ((s.stockGuingamp || 0) + (s.stockRennes || 0))) stockProblems++; });
     sortedArray(state.stockCollecteurs, byOrder).forEach(function(s){ if((s.besoin || 0) > ((s.stockGuingamp || 0) + (s.stockRennes || 0))) stockProblems++; });
     sortedArray(state.stockDivers, byOrder).forEach(function(s){ if((s.besoin || 0) > ((s.stockGuingamp || 0) + (s.stockRennes || 0))) stockProblems++; });
     sortedArray(state.stockEquip, byOrder).forEach(function(e){ if(e.state === "rupture") stockProblems++; });
-    var alertesTotal = problemeChantiers + stockProblems;
+    var alertesTotal = problemeChantiers + impayesChantiers + stockProblems;
     setText("dashAlertes", String(alertesTotal));
     var alertesEl = document.getElementById("dashAlertes");
     if(alertesEl) alertesEl.style.color = alertesTotal ? "var(--crit-ink)" : "";
-    setText("dashAlertesDelta", alertesTotal ? (problemeChantiers + " chantier(s), " + stockProblems + " alerte(s) stock") : "Aucune alerte");
+    setText("dashAlertesDelta", alertesTotal ? (problemeChantiers + " chantier(s), " + impayesChantiers + " impayé(s), " + stockProblems + " alerte(s) stock") : "Aucune alerte");
 
     /* répartition par département */
     var deptCounts = {};
@@ -3569,6 +3965,10 @@
           items.push({crit:true, title:c.client, txt:c.reste || "Problème signalé sur le forage", where:c.commune + " (" + c.dept + ")"});
         } else if(c.raccStatut === "probleme"){
           items.push({crit:true, title:c.client, txt:c.reste || "Problème signalé sur le raccordement", where:c.commune + " (" + c.dept + ")"});
+        }
+        if(c.factStatut === "impaye"){
+          var soldeC = (c.montant || 0) - paiementsTotal(c);
+          items.push({crit:true, title:c.client, txt:"Facture impayée" + (soldeC > 0 ? " — solde " + eur(soldeC) : ""), where:c.commune + " (" + c.dept + ")"});
         }
       });
       sortedArray(state.stockSondes, function(a, b){ return a.depth - b.depth; }).forEach(function(s){
@@ -3853,7 +4253,8 @@
     var wb = XLSX.utils.book_new();
 
     var chantiersRows = sortedArray(state.chantiers, byOrder).map(function(c){
-      var solde = (c.montant || 0) - (c.acompte || 0);
+      var paye = paiementsTotal(c);
+      var solde = (c.montant || 0) - paye;
       return {
         "Client": c.client || "", "Commune": c.commune || "", "Departement": c.dept || "",
         "Vendu par": c.vendeur || "", "Chauffagiste": c.chauffagiste || "", "Responsable": c.responsable || "", "Mandat signe": c.mandat ? "Oui" : "Non",
@@ -3861,8 +4262,9 @@
         "Type": c.type || "", "Statut forage": c.forageStatut || "",
         "Statut raccordement": c.raccNA ? "Sans objet" : (c.raccStatut || "attente"),
         "Reste a faire": c.reste || "", "DICT": c.dict ? "Oui" : "Non", "PPSPS": c.ppsps ? "Oui" : "Non",
-        "A planifier": c.planifier ? "Oui" : "Non",
-        "Montant EUR": c.montant || 0, "Acompte EUR": c.acompte || 0, "Solde EUR": solde
+        "A planifier": c.planifier ? "Oui" : "Non", "Cloture": c.archive ? "Oui" : "Non",
+        "Statut facturation": (factStatutMeta[c.factStatut] && factStatutMeta[c.factStatut].label) || "Facturé",
+        "Montant EUR": c.montant || 0, "Paye EUR": paye, "Solde EUR": solde
       };
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(chantiersRows), "Chantiers");
