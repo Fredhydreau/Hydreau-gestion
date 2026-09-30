@@ -383,7 +383,14 @@
   .modal-head h3{margin:0; font-size:15.5px;}
   .modal-head .sub{font-size:11.5px; color:var(--ink-muted); margin-top:2px;}
   .modal-close{background:var(--surface-2); border:1px solid var(--border); border-radius:8px; width:26px;height:26px; cursor:pointer; color:var(--ink-soft); flex:none;}
-  .modal-body{padding:14px 20px 20px;}
+  .modal-body{padding:14px 20px 20px; position:relative;}
+  .modal-body.drag-active{outline:2px dashed var(--brand-teal); outline-offset:-6px; background:var(--brand-sky);}
+  .docs-drop-overlay{
+    display:none; position:absolute; inset:0; z-index:5; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    background:var(--brand-sky); color:var(--brand-teal-ink); font-weight:700; font-size:13.5px;
+    border-radius:0 0 16px 16px; pointer-events:none;
+  }
+  .modal-body.drag-active .docs-drop-overlay{display:flex;}
   .doc-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--border);}
   .doc-row:last-child{border-bottom:none;}
   .doc-row .ic{width:30px;height:30px;border-radius:8px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; flex:none; color:var(--brand-teal-ink);}
@@ -773,6 +780,10 @@
 
       <!-- ===================== CHANTIERS ===================== -->
       <section class="view" id="view-chantiers">
+        <div class="viewmode-switch" id="chantiersTabSwitch" style="margin-bottom:12px;">
+          <button type="button" class="vm-btn active" data-tab="active">En cours</button>
+          <button type="button" class="vm-btn" data-tab="closed">Clôturés</button>
+        </div>
         <div class="filterbar">
           <button class="chip active" data-filter="dept" data-val="all">Tous départements</button>
           <button class="chip" data-filter="dept" data-val="22">22</button>
@@ -792,15 +803,15 @@
           <div class="filter-sep"></div>
           <button class="chip" id="clearResteBtn" title="Vider le champ « Reste à faire » de tous les chantiers" style="color:var(--crit-ink);">Vider tous les « Reste à faire »</button>
         </div>
-        <div class="hint" style="margin:-6px 0 14px;">Un chantier par client &middot; le raccordement démarre toujours une fois le forage terminé &middot; les équipes sont affectées dans le Planning &middot; cliquer sur un client ouvre sa fiche</div>
+        <div class="hint" style="margin:-6px 0 14px;">Un chantier par client &middot; le raccordement démarre toujours une fois le forage terminé &middot; les équipes sont affectées dans le Planning &middot; cliquer sur un client ouvre sa fiche &middot; cocher « Clôturé » range le chantier dans l'onglet Clôturés</div>
 
         <div class="tablecard">
           <div class="tablewrap">
           <table id="chantiersTable">
             <thead>
               <tr>
-                <th>Client</th><th>Commune</th><th>Responsable</th><th>Mandat</th><th>Date de déclaration</th><th>Décl. validée</th><th>Type</th><th>Longueur totale</th><th>Nb sondes</th><th>Statut</th><th>Raccordement</th>
-                <th>Reste à faire</th><th>DICT</th><th>PPSPS</th><th>À planifier</th><th>Montant</th><th>Acompte</th><th>Solde</th><th>Docs</th><th>Suppr.</th>
+                <th>Client</th><th>Commune</th><th>Vendu par</th><th>Chauffagiste</th><th>Mandat</th><th>Date de déclaration</th><th>Décl. validée</th><th>Type</th><th>Longueur totale</th><th>Nb sondes</th><th>Statut</th><th>Raccordement</th>
+                <th>Reste à faire</th><th>DICT</th><th>PPSPS</th><th>À planifier</th><th>Montant</th><th>Acompte</th><th>Solde</th><th>Clôturé</th><th>Docs</th><th>Suppr.</th>
               </tr>
             </thead>
             <tbody>
@@ -808,10 +819,11 @@
             </tbody>
             <tfoot>
               <tr>
-                <td colspan="15" id="chantiersFooterLabel">Total — 14 chantiers &middot; 2 094&nbsp;m forés</td>
+                <td colspan="16" id="chantiersFooterLabel">Total — 14 chantiers &middot; 2 094&nbsp;m forés</td>
                 <td class="num" id="chantiersFooterMontant">106 702&nbsp;€</td>
                 <td class="num" id="chantiersFooterAcompte">52 083&nbsp;€</td>
                 <td class="num" id="chantiersFooterSolde">54 619&nbsp;€</td>
+                <td></td>
                 <td></td>
                 <td></td>
               </tr>
@@ -998,11 +1010,15 @@
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" id="docsDropzone">
+      <div class="docs-drop-overlay" id="docsDropOverlay">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12.5V7a4 4 0 0 1 8 0v9a2.6 2.6 0 0 1-5.2 0V8.5"/></svg>
+        Dépose le ou les fichiers ici
+      </div>
       <div id="docsList"></div>
       <button class="doc-add" id="docsAddBtn">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
-        Ajouter un fichier
+        Ajouter un fichier — ou glisse-le directement ici
       </button>
       <input type="file" id="docsFileInput" hidden multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp">
       <div class="doc-hint">PDF et images uniquement (les .docx ne peuvent pas être stockés ici)</div>
@@ -1049,7 +1065,10 @@
           <div class="form-row"><label for="ncVendeur">Vendu par</label><input type="text" id="ncVendeur" placeholder="Nom du commercial"></div>
           <div class="form-row"><label for="ncSuivi">Suivi par</label><input type="text" id="ncSuivi" placeholder="Nom du suivi commercial"></div>
         </div>
-        <div class="form-row"><label for="ncResponsable">Responsable du chantier</label><input type="text" id="ncResponsable" placeholder="Nom du responsable terrain"></div>
+        <div class="form-row-2">
+          <div class="form-row"><label for="ncResponsable">Responsable du chantier</label><input type="text" id="ncResponsable" placeholder="Nom du responsable terrain"></div>
+          <div class="form-row"><label for="ncChauffagiste">Chauffagiste</label><input type="text" id="ncChauffagiste" placeholder="Nom du chauffagiste"></div>
+        </div>
         <button type="submit" class="btn-primary" style="width:100%; justify-content:center; margin-top:6px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
           Créer le chantier
@@ -1133,7 +1152,10 @@
           <div class="form-row"><label for="ficheVendeur">Vendu par</label><input type="text" class="field-input" id="ficheVendeur" data-col="chantiers" data-field="vendeur"></div>
           <div class="form-row"><label for="ficheSuivi">Suivi par</label><input type="text" class="field-input" id="ficheSuivi" data-col="chantiers" data-field="suivi"></div>
         </div>
-        <div class="form-row"><label for="ficheResponsable">Responsable du chantier</label><input type="text" class="field-input" id="ficheResponsable" data-col="chantiers" data-field="responsable"></div>
+        <div class="form-row-2">
+          <div class="form-row"><label for="ficheResponsable">Responsable du chantier</label><input type="text" class="field-input" id="ficheResponsable" data-col="chantiers" data-field="responsable"></div>
+          <div class="form-row"><label for="ficheChauffagiste">Chauffagiste</label><input type="text" class="field-input" id="ficheChauffagiste" data-col="chantiers" data-field="chauffagiste"></div>
+        </div>
       </div>
       <div class="fiche-section">
         <h4>Débours / matériaux utilisés</h4>
@@ -1410,6 +1432,7 @@
       vendeur: document.getElementById("ncVendeur").value.trim(),
       suivi: document.getElementById("ncSuivi").value.trim(),
       responsable: document.getElementById("ncResponsable").value.trim(),
+      chauffagiste: document.getElementById("ncChauffagiste").value.trim(),
       docs: [],
       order: maxOrder + 1
     };
@@ -1692,6 +1715,7 @@
   function planCheckbox(c){ return boolCheckbox(c.id, "planifier", c.planifier); }
 
   var chantiersTbody = document.querySelector("#chantiersTable tbody");
+  var chantiersTab = "active"; /* "active" | "closed" */
   function renderChantiers(fromRemote){
     if(fromRemote && activeElInside(chantiersTbody)) return;
     var deptBtn = document.querySelector('.chip[data-filter="dept"].active');
@@ -1702,6 +1726,7 @@
     var onlyToPlan = document.getElementById("planifierToggle").classList.contains("active");
 
     var rows = sortedArray(state.chantiers, function(a, b){ return (a.client || "").localeCompare(b.client || "", "fr"); }).filter(function(c){
+      if(chantiersTab === "closed" ? !c.archive : !!c.archive) return false;
       if(dept !== "all" && c.dept !== dept) return false;
       if(type !== "all" && c.type !== type) return false;
       if(onlyToPlan && !c.planifier) return false;
@@ -1714,7 +1739,8 @@
       return "<tr>"
         + '<td class="client"><button type="button" class="client-link" data-fiche-id="' + c.id + '">' + c.client + "</button></td>"
         + '<td class="commune">' + c.commune + ' <span class="dept">(' + c.dept + ")</span></td>"
-        + '<td><input type="text" class="cell-input field-input" placeholder="Nom" data-col="chantiers" data-id="' + c.id + '" data-field="responsable" value="' + String(c.responsable || "").replace(/"/g, "&quot;") + '"></td>'
+        + '<td><input type="text" class="cell-input field-input" placeholder="Nom du commercial" data-col="chantiers" data-id="' + c.id + '" data-field="vendeur" value="' + String(c.vendeur || "").replace(/"/g, "&quot;") + '"></td>'
+        + '<td><input type="text" class="cell-input field-input" placeholder="Nom" data-col="chantiers" data-id="' + c.id + '" data-field="chauffagiste" value="' + String(c.chauffagiste || "").replace(/"/g, "&quot;") + '"></td>'
         + "<td>" + boolToggleHtml(c.id, "mandat", c.mandat) + "</td>"
         + '<td class="mono"><input type="text" class="cell-input field-input" placeholder="jj/mm/aaaa" data-col="chantiers" data-id="' + c.id + '" data-field="declaration" value="' + String(c.declaration || "").replace(/"/g, "&quot;") + '"></td>'
         + '<td>' + boolCheckbox(c.id, "declarationValidee", c.declarationValidee) + "</td>"
@@ -1730,6 +1756,7 @@
         + '<td class="num' + (c.montant ? "" : " zero") + '">' + (c.montant ? eur(c.montant) : "—") + "</td>"
         + '<td class="num' + (c.acompte ? "" : " zero") + '">' + (c.acompte ? eur(c.acompte) : "—") + "</td>"
         + '<td class="num' + (solde > 0 ? " due" : " zero") + '">' + (c.montant ? eur(solde) : "—") + "</td>"
+        + '<td>' + boolToggleHtml(c.id, "archive", c.archive) + "</td>"
         + '<td>' + docsButton(c) + "</td>"
         + '<td>' + delBtnHtml("chantiers", c.id) + "</td>"
         + "</tr>";
@@ -1742,7 +1769,9 @@
     renderStock();
   }
   function updateChantiersFooter(){
-    var all = sortedArray(state.chantiers, byOrder);
+    var all = sortedArray(state.chantiers, byOrder).filter(function(c){
+      return chantiersTab === "closed" ? !!c.archive : !c.archive;
+    });
     var count = all.length;
     var totalDepth = 0;
     all.forEach(function(c){ totalDepth += totalLongueur(c); });
@@ -1750,16 +1779,26 @@
     var acompte = all.reduce(function(s, c){ return s + (c.acompte || 0); }, 0);
     var solde = montant - acompte;
     var labelEl = document.getElementById("chantiersFooterLabel");
-    if(labelEl) labelEl.textContent = "Total — " + count + " chantiers · " + totalDepth.toLocaleString("fr-FR") + " m forés";
+    var labelPrefix = chantiersTab === "closed" ? "Total clôturés — " : "Total — ";
+    if(labelEl) labelEl.textContent = labelPrefix + count + " chantiers · " + totalDepth.toLocaleString("fr-FR") + " m forés";
     var mEl = document.getElementById("chantiersFooterMontant"); if(mEl) mEl.textContent = eur(montant);
     var aEl = document.getElementById("chantiersFooterAcompte"); if(aEl) aEl.textContent = eur(acompte);
     var sEl = document.getElementById("chantiersFooterSolde"); if(sEl) sEl.textContent = eur(solde);
   }
+  document.getElementById("chantiersTabSwitch").addEventListener("click", function(e){
+    var btn = e.target.closest(".vm-btn");
+    if(!btn) return;
+    var tab = btn.getAttribute("data-tab");
+    if(tab === chantiersTab) return;
+    chantiersTab = tab;
+    document.querySelectorAll("#chantiersTabSwitch .vm-btn").forEach(function(b){ b.classList.toggle("active", b === btn); });
+    renderChantiers();
+  });
   function renderBacklog(){
     var el = document.getElementById("backlogList");
     if(!el) return;
     var rows = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
-      return !!c.planifier && !c.raccNA && c.forageStatut === "ok" && (c.raccStatut === null || c.raccStatut === undefined || c.raccStatut === "attente");
+      return !!c.planifier && !c.archive && !c.raccNA && c.forageStatut === "ok" && (c.raccStatut === null || c.raccStatut === undefined || c.raccStatut === "attente");
     });
     if(rows.length === 0){ el.innerHTML = '<div class="hint">Aucun raccordement en attente.</div>'; return; }
     el.innerHTML = rows.map(function(c){
@@ -1770,7 +1809,7 @@
     var el = document.getElementById("backlogForageList");
     if(!el) return;
     var rows = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
-      return !!c.planifier && c.forageStatut === "attente";
+      return !!c.planifier && !c.archive && c.forageStatut === "attente";
     });
     if(rows.length === 0){ el.innerHTML = '<div class="hint">Aucun forage en attente.</div>'; return; }
     el.innerHTML = rows.map(function(c){
@@ -1897,10 +1936,12 @@
 
   var docsFileInput = document.getElementById("docsFileInput");
   document.getElementById("docsAddBtn").addEventListener("click", function(){ docsFileInput.click(); });
-  docsFileInput.addEventListener("change", function(){
-    if(!currentDocsId || !docsFileInput.files || !state.chantiers[currentDocsId]) return;
-    var files = Array.prototype.slice.call(docsFileInput.files);
-    docsFileInput.value = "";
+
+  /* Traite une liste de fichiers (choisis via le sélecteur OU déposés par glisser-déposer)
+     et les rattache au chantier actuellement ouvert dans la fenêtre Documents. */
+  function handleDocsFiles(fileList){
+    if(!currentDocsId || !fileList || !state.chantiers[currentDocsId]) return;
+    var files = Array.prototype.slice.call(fileList);
     if(!files.length) return;
     var targetId = currentDocsId;
     var clientName = state.chantiers[targetId].client;
@@ -1946,7 +1987,36 @@
     Promise.all(files.map(storeOne)).then(function(){
       showToast("Fichier(s) ajouté(s) au chantier " + clientName + " — partagé avec les autres postes");
     });
+  }
+
+  docsFileInput.addEventListener("change", function(){
+    handleDocsFiles(docsFileInput.files);
+    docsFileInput.value = "";
   });
+
+  /* Glisser-déposer un ou plusieurs fichiers depuis le bureau directement sur la fenêtre Documents */
+  var docsDropzoneEl = document.getElementById("docsDropzone");
+  var docsDragDepth = 0;
+  if(docsDropzoneEl){
+    docsDropzoneEl.addEventListener("dragenter", function(e){
+      e.preventDefault();
+      docsDragDepth++;
+      docsDropzoneEl.classList.add("drag-active");
+    });
+    docsDropzoneEl.addEventListener("dragover", function(e){ e.preventDefault(); });
+    docsDropzoneEl.addEventListener("dragleave", function(e){
+      e.preventDefault();
+      docsDragDepth = Math.max(0, docsDragDepth - 1);
+      if(docsDragDepth === 0){ docsDropzoneEl.classList.remove("drag-active"); }
+    });
+    docsDropzoneEl.addEventListener("drop", function(e){
+      e.preventDefault();
+      docsDragDepth = 0;
+      docsDropzoneEl.classList.remove("drag-active");
+      var dt = e.dataTransfer;
+      if(dt && dt.files && dt.files.length){ handleDocsFiles(dt.files); }
+    });
+  }
 
   /* ---------- fiche chantier ---------- */
   var ficheOverlay = document.getElementById("ficheOverlay");
@@ -2066,7 +2136,7 @@
     currentFicheId = id;
     document.getElementById("ficheClientName").textContent = c.client;
     document.getElementById("ficheSubline").textContent = c.commune + " (" + c.dept + ") · " + c.type;
-    ["ficheTel","ficheEmail","ficheAdresse","ficheReste","ficheVendeur","ficheSuivi","ficheResponsable"].forEach(function(elId){
+    ["ficheTel","ficheEmail","ficheAdresse","ficheReste","ficheVendeur","ficheSuivi","ficheResponsable","ficheChauffagiste"].forEach(function(elId){
       document.getElementById(elId).setAttribute("data-id", id);
     });
     document.getElementById("ficheTel").value = c.telephone || "";
@@ -2076,6 +2146,7 @@
     document.getElementById("ficheVendeur").value = c.vendeur || "";
     document.getElementById("ficheSuivi").value = c.suivi || "";
     document.getElementById("ficheResponsable").value = c.responsable || "";
+    document.getElementById("ficheChauffagiste").value = c.chauffagiste || "";
     renderFicheInfo(c);
     renderFicheSteps(c);
     document.getElementById("deboursLabelInput").value = "";
@@ -2508,7 +2579,7 @@
     var chantiers = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
       // Seuls les chantiers cochés « À planifier » proposés dans le planning — sauf le chantier
       // déjà affecté à cette case, pour ne jamais faire disparaître une affectation existante.
-      return !!c.planifier || c.id === selected;
+      return (!!c.planifier && !c.archive) || c.id === selected;
     });
     html += chantiers.map(function(c){
       return '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + '>' + c.client + " · " + c.commune + '</option>';
@@ -3158,7 +3229,7 @@
   function setText(id, txt){ var el = document.getElementById(id); if(el) el.textContent = txt; }
   function renderDashboard(){
     if(!document.getElementById("dashCaTotal")) return;
-    var chantiers = sortedArray(state.chantiers, byOrder);
+    var chantiers = sortedArray(state.chantiers, byOrder).filter(function(c){ return !c.archive; });
     var count = chantiers.length;
     var montantTotal = chantiers.reduce(function(s, c){ return s + (c.montant || 0); }, 0);
     var acompteTotal = chantiers.reduce(function(s, c){ return s + (c.acompte || 0); }, 0);
@@ -3557,7 +3628,7 @@
       var solde = (c.montant || 0) - (c.acompte || 0);
       return {
         "Client": c.client || "", "Commune": c.commune || "", "Departement": c.dept || "",
-        "Responsable": c.responsable || "", "Mandat signe": c.mandat ? "Oui" : "Non",
+        "Vendu par": c.vendeur || "", "Chauffagiste": c.chauffagiste || "", "Responsable": c.responsable || "", "Mandat signe": c.mandat ? "Oui" : "Non",
         "Date de declaration": c.declaration || "", "Declaration validee": c.declarationValidee ? "Oui" : "Non",
         "Type": c.type || "", "Statut forage": c.forageStatut || "",
         "Statut raccordement": c.raccNA ? "Sans objet" : (c.raccStatut || "attente"),
