@@ -426,6 +426,10 @@
   .vm-btn{background:transparent; border:none; border-radius:7px; padding:7px 12px; font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer;}
   .vm-btn:hover{background:var(--surface-3);}
   .vm-btn.active{background:var(--brand-teal); color:#fff;}
+  .sortable-th{cursor:pointer; user-select:none; white-space:nowrap;}
+  .sortable-th:hover{color:var(--ink);}
+  .sortable-th .sort-arrow{display:inline-block; margin-left:4px; font-size:10px; opacity:0.35;}
+  .sortable-th.sort-active .sort-arrow{opacity:1; color:var(--brand-teal-ink);}
   .pdf-export-wrap{position:relative;}
   .pdf-export-menu{
     position:absolute; top:calc(100% + 8px); right:0; z-index:30; width:250px;
@@ -780,9 +784,15 @@
 
       <!-- ===================== CHANTIERS ===================== -->
       <section class="view" id="view-chantiers">
-        <div class="viewmode-switch" id="chantiersTabSwitch" style="margin-bottom:12px;">
-          <button type="button" class="vm-btn active" data-tab="active">En cours</button>
-          <button type="button" class="vm-btn" data-tab="closed">Clôturés</button>
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+          <div class="viewmode-switch" id="chantiersTabSwitch">
+            <button type="button" class="vm-btn active" data-tab="active">En cours</button>
+            <button type="button" class="vm-btn" data-tab="closed">Clôturés</button>
+          </div>
+          <button class="btn-secondary" id="chantiersPdfBtn" title="Exporter en PDF la liste des chantiers affichés (avec le tri en cours)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M14 3v5h5M6 21h12a2 2 0 0 0 2-2V8l-6-6H6a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2Z"/></svg>
+            Exporter PDF
+          </button>
         </div>
         <div class="filterbar">
           <button class="chip active" data-filter="dept" data-val="all">Tous départements</button>
@@ -810,7 +820,7 @@
           <table id="chantiersTable">
             <thead>
               <tr>
-                <th>Client</th><th>Commune</th><th>Vendu par</th><th>Chauffagiste</th><th>Mandat</th><th>Date de déclaration</th><th>Décl. validée</th><th>Type</th><th>Longueur totale</th><th>Nb sondes</th><th>Statut</th><th>Raccordement</th>
+                <th>Client</th><th>Commune</th><th class="sortable-th" id="thVendeur" data-sort-field="vendeur" title="Trier par vendu par">Vendu par<span class="sort-arrow"></span></th><th>Chauffagiste</th><th>Mandat</th><th>Date de déclaration</th><th>Décl. validée</th><th>Type</th><th>Longueur totale</th><th>Nb sondes</th><th>Statut</th><th>Raccordement</th>
                 <th>Reste à faire</th><th>DICT</th><th>PPSPS</th><th>À planifier</th><th>Montant</th><th>Acompte</th><th>Solde</th><th>Clôturé</th><th>Docs</th><th>Suppr.</th>
               </tr>
             </thead>
@@ -1716,6 +1726,32 @@
 
   var chantiersTbody = document.querySelector("#chantiersTable tbody");
   var chantiersTab = "active"; /* "active" | "closed" */
+  var chantiersSortField = null; /* null = tri par défaut (client) | "vendeur" */
+  var chantiersSortDir = "asc"; /* "asc" | "desc" */
+  var lastChantiersRows = [];
+  function chantiersCompareFn(){
+    var byClient = function(a, b){ return (a.client || "").localeCompare(b.client || "", "fr"); };
+    if(chantiersSortField === "vendeur"){
+      return function(a, b){
+        var c = (a.vendeur || "").trim().localeCompare((b.vendeur || "").trim(), "fr");
+        if(c === 0) c = byClient(a, b);
+        return chantiersSortDir === "desc" ? -c : c;
+      };
+    }
+    return byClient;
+  }
+  function updateChantiersSortIndicator(){
+    var th = document.getElementById("thVendeur");
+    if(!th) return;
+    var arrow = th.querySelector(".sort-arrow");
+    if(chantiersSortField === "vendeur"){
+      th.classList.add("sort-active");
+      if(arrow) arrow.textContent = chantiersSortDir === "asc" ? "▲" : "▼";
+    } else {
+      th.classList.remove("sort-active");
+      if(arrow) arrow.textContent = "";
+    }
+  }
   function renderChantiers(fromRemote){
     if(fromRemote && activeElInside(chantiersTbody)) return;
     var deptBtn = document.querySelector('.chip[data-filter="dept"].active');
@@ -1725,7 +1761,7 @@
     var q = (document.getElementById("searchInput").value || "").trim().toLowerCase();
     var onlyToPlan = document.getElementById("planifierToggle").classList.contains("active");
 
-    var rows = sortedArray(state.chantiers, function(a, b){ return (a.client || "").localeCompare(b.client || "", "fr"); }).filter(function(c){
+    var rows = sortedArray(state.chantiers, chantiersCompareFn()).filter(function(c){
       if(chantiersTab === "closed" ? !c.archive : !!c.archive) return false;
       if(dept !== "all" && c.dept !== dept) return false;
       if(type !== "all" && c.type !== type) return false;
@@ -1733,6 +1769,8 @@
       if(q && (c.client.toLowerCase().indexOf(q) === -1 && c.commune.toLowerCase().indexOf(q) === -1)) return false;
       return true;
     });
+    lastChantiersRows = rows;
+    updateChantiersSortIndicator();
 
     chantiersTbody.innerHTML = rows.map(function(c){
       var solde = c.montant - c.acompte;
@@ -1792,6 +1830,15 @@
     if(tab === chantiersTab) return;
     chantiersTab = tab;
     document.querySelectorAll("#chantiersTabSwitch .vm-btn").forEach(function(b){ b.classList.toggle("active", b === btn); });
+    renderChantiers();
+  });
+  document.getElementById("thVendeur").addEventListener("click", function(){
+    if(chantiersSortField === "vendeur"){
+      chantiersSortDir = chantiersSortDir === "asc" ? "desc" : "asc";
+    } else {
+      chantiersSortField = "vendeur";
+      chantiersSortDir = "asc";
+    }
     renderChantiers();
   });
   function renderBacklog(){
@@ -2298,6 +2345,16 @@
     }
     return "—";
   }
+  function ficheTotalLongueurText(c){
+    var v = totalLongueur(c);
+    return v ? (v + " m") : "—";
+  }
+  function ficheSondesLengthsText(c){
+    if(c.type === "Géothermie" && c.sondes && c.sondes.length){
+      return c.sondes.map(function(s){ return s + " m"; }).join("  +  ");
+    }
+    return "—";
+  }
   function ficheAdresseLine(c){
     return (c.adresse ? c.adresse + ", " : "") + c.commune + " (" + c.dept + ")";
   }
@@ -2322,8 +2379,9 @@
       ["Adresse", ficheAdresseLine(c)],
       ["Téléphone", c.telephone || "—"],
       ["Type de chantier", c.type || "—"],
-      ["Longueur(s) de forage prévue(s)", ficheForageLengths(c)],
-      ["Date de déclaration", c.declaration || "—"],
+      ["Longueur totale prévue", ficheTotalLongueurText(c)],
+      ["Longueur(s) des sondes prévue(s)", ficheSondesLengthsText(c)],
+      ["Chauffagiste", c.chauffagiste || "—"],
       ["Notes / reste à faire", c.reste || "—"]
     ];
   }
@@ -2360,7 +2418,8 @@
 
   var PDF_WINANSI_MAP = {
     "‘":0x91, "’":0x92, "“":0x93, "”":0x94, "–":0x96, "—":0x97,
-    "Œ":0x8C, "œ":0x9C, "Ÿ":0x9F, "€":0x80, "…":0x85, "ˆ":0x88, "‹":0x8B, "›":0x9B
+    "Œ":0x8C, "œ":0x9C, "Ÿ":0x9F, "€":0x80, "…":0x85, "ˆ":0x88, "‹":0x8B, "›":0x9B,
+    " ":0x20, " ":0x20, "‑":0x2D, "→":0x3E, "←":0x3C
   };
   function pdfWinAnsiString(str){
     var out = "";
@@ -2787,7 +2846,9 @@
     if(!c){ return {kind:"empty"}; }
     return {
       kind:"chantier", client:c.client || "", commune:c.commune || "", tel:c.telephone || "",
-      adresse:c.adresse || "", type:c.type || "", note:cellData.note || ""
+      adresse:c.adresse || "", type:c.type || "", note:cellData.note || "",
+      longueurTotale: ficheTotalLongueurText(c), longueurSondes: ficheSondesLengthsText(c),
+      chauffagiste: c.chauffagiste || ""
     };
   }
 
@@ -2914,6 +2975,9 @@
         if(info.adresse){ pdfWrapText(info.adresse, 24).slice(0, 2).forEach(function(line){ text("F2", 9, cx + 10, ly, line); ly -= 12; }); }
         if(info.tel){ text("F2", 9.5, cx + 10, ly, "Tél. " + info.tel); ly -= 13; }
         if(info.type){ text("F2", 9, cx + 10, ly, info.type); ly -= 13; }
+        if(info.longueurTotale && info.longueurTotale !== "—"){ text("F2", 9, cx + 10, ly, "Longueur totale : " + info.longueurTotale); ly -= 13; }
+        if(info.longueurSondes && info.longueurSondes !== "—"){ pdfWrapText("Sondes : " + info.longueurSondes, 26).forEach(function(line){ text("F2", 9, cx + 10, ly, line); ly -= 12; }); }
+        if(info.chauffagiste){ text("F2", 9, cx + 10, ly, "Chauffagiste : " + info.chauffagiste); ly -= 13; }
         if(info.note){
           ly -= 4;
           gray(0.5);
@@ -2939,6 +3003,170 @@
       console.error("Team planning PDF build failed", err);
       return null;
     }
+  }
+
+  /* ===== Export PDF de la liste des chantiers (tableau, avec regroupement par « Vendu par » si ce tri est actif) ===== */
+  var CHANTIERS_PDF_TEAL = [13, 143, 131];
+  var CHANTIERS_PDF_COLS = [
+    {key:"client",   label:"Client",         x:30,  w:160},
+    {key:"commune",  label:"Commune",        x:190, w:130},
+    {key:"vendeur",  label:"Vendu par",      x:320, w:100},
+    {key:"type",     label:"Type",           x:420, w:90},
+    {key:"statut",   label:"Statut forage",  x:510, w:80},
+    {key:"montant",  label:"Montant",        x:590, w:82, align:"right"},
+    {key:"acompte",  label:"Acompte",        x:672, w:72, align:"right"},
+    {key:"solde",    label:"Solde",          x:744, w:68, align:"right"}
+  ];
+  function pdfEstTextWidth(str, size, bold){
+    return String(str || "").length * size * (bold ? 0.58 : 0.5);
+  }
+  function chantiersListLines(rows, sortField){
+    var lines = [];
+    if(sortField === "vendeur"){
+      var lastKey;
+      rows.forEach(function(c){
+        var v = (c.vendeur || "").trim();
+        var key = v || "\u0000";
+        if(key !== lastKey){ lines.push({type:"group", label: v || "Non renseigné"}); lastKey = key; }
+        lines.push({type:"row", c:c});
+      });
+    } else {
+      rows.forEach(function(c){ lines.push({type:"row", c:c}); });
+    }
+    return lines;
+  }
+  function buildChantiersListPageContent(pageLines, pageWidth, pageHeight, margin, pageNum, totalPages, headMeta, geo){
+    var ops = [];
+    function text(font, size, xx, yy, str){
+      ops.push("BT /" + font + " " + size + " Tf " + xx + " " + Math.round(yy * 100) / 100 + " Td (" + pdfWinAnsiString(str) + ") Tj ET");
+    }
+    function gray(g){ ops.push(g + " " + g + " " + g + " rg"); }
+    function rgbFill(r, g, b){ ops.push((Math.round(r / 255 * 1000) / 1000) + " " + (Math.round(g / 255 * 1000) / 1000) + " " + (Math.round(b / 255 * 1000) / 1000) + " rg"); }
+    function hline(x1, yy, x2){ ops.push("0.6 w " + x1 + " " + yy + " m " + x2 + " " + yy + " l S"); }
+    function fillRect(x, yb, w, h){ ops.push(x + " " + yb + " " + w + " " + h + " re f"); }
+    function image(objName, xx, yy, w, h){ ops.push("q " + w + " 0 0 " + h + " " + xx + " " + yy + " cm /" + objName + " Do Q"); }
+    function textR(font, size, colX, colW, yy, str, bold){
+      var w = pdfEstTextWidth(str, size, bold);
+      text(font, size, colX + colW - 6 - w, yy, str);
+    }
+
+    var logoW = 60;
+    var logoH = Math.round((logoW * LOGO_PDF_H / LOGO_PDF_W) * 100) / 100;
+    var logoTopY = pageHeight - margin;
+    var logoY = logoTopY - logoH;
+    image("Im1", margin, logoY, logoW, logoH);
+    var headTextX = margin + logoW + 14;
+    gray(0);
+    text("F1", 12.5, headTextX, logoTopY - 12, "HYDREAU FORAGE");
+    rgbFill(CHANTIERS_PDF_TEAL[0], CHANTIERS_PDF_TEAL[1], CHANTIERS_PDF_TEAL[2]);
+    text("F1", 16, headTextX, logoTopY - 31, "LISTE DES CHANTIERS");
+    gray(0.3);
+    text("F1", 10, headTextX, logoTopY - 46, headMeta.line1);
+    gray(0.5);
+    var editedLabel = "Édité le " + new Date().toLocaleDateString("fr-FR") + (totalPages > 1 ? "   ·   Page " + pageNum + "/" + totalPages : "");
+    var editedLabelY = logoTopY - 59;
+    text("F2", 8.5, headTextX, editedLabelY, editedLabel);
+    gray(0);
+    var y = Math.min(logoY, editedLabelY - 8) - 10;
+    hline(margin, y, pageWidth - margin);
+    y -= 18;
+
+    /* en-têtes de colonnes */
+    gray(0.4);
+    CHANTIERS_PDF_COLS.forEach(function(cd){
+      if(cd.align === "right"){ textR("F1", 8.5, cd.x, cd.w, y, cd.label, true); }
+      else { text("F1", 8.5, cd.x + 4, y, cd.label); }
+    });
+    gray(0.75);
+    hline(margin, y - 6, pageWidth - margin);
+    gray(0);
+    y -= 6;
+
+    var rowH = 20, groupH = 22;
+    var rowIdx = 0;
+    pageLines.forEach(function(ln){
+      if(ln.type === "group"){
+        var gTop = y, gBottom = y - groupH;
+        gray(0.92);
+        fillRect(margin, gBottom, pageWidth - 2 * margin, groupH);
+        rgbFill(CHANTIERS_PDF_TEAL[0], CHANTIERS_PDF_TEAL[1], CHANTIERS_PDF_TEAL[2]);
+        fillRect(margin, gTop - 2, pageWidth - 2 * margin, 2);
+        gray(0.15);
+        text("F1", 10, margin + 8, gBottom + 7, "VENDU PAR : " + ln.label.toUpperCase());
+        gray(0);
+        y = gBottom;
+        rowIdx = 0;
+      } else {
+        var c = ln.c;
+        var rTop = y, rBottom = y - rowH;
+        if(rowIdx % 2 === 1){ gray(0.965); fillRect(margin, rBottom, pageWidth - 2 * margin, rowH); gray(0); }
+        var ty = rBottom + 6.5;
+        var solde = (c.montant || 0) - (c.acompte || 0);
+        text("F1", 9, CHANTIERS_PDF_COLS[0].x + 4, ty, pdfWrapText(c.client || "", 26)[0]);
+        text("F2", 8.3, CHANTIERS_PDF_COLS[1].x + 4, ty, pdfWrapText((c.commune || "") + (c.dept ? " (" + c.dept + ")" : ""), 22)[0]);
+        text("F2", 8.3, CHANTIERS_PDF_COLS[2].x + 4, ty, pdfWrapText(c.vendeur || "—", 18)[0]);
+        text("F2", 8.3, CHANTIERS_PDF_COLS[3].x + 4, ty, pdfWrapText(c.type || "", 16)[0]);
+        text("F2", 8.3, CHANTIERS_PDF_COLS[4].x + 4, ty, (statutMeta[c.forageStatut] && statutMeta[c.forageStatut].label) || "—");
+        textR("F2", 8.3, CHANTIERS_PDF_COLS[5].x, CHANTIERS_PDF_COLS[5].w, ty, c.montant ? eur(c.montant) : "—");
+        textR("F2", 8.3, CHANTIERS_PDF_COLS[6].x, CHANTIERS_PDF_COLS[6].w, ty, c.acompte ? eur(c.acompte) : "—");
+        textR("F2", 8.3, CHANTIERS_PDF_COLS[7].x, CHANTIERS_PDF_COLS[7].w, ty, c.montant ? eur(solde) : "—");
+        y = rBottom;
+        rowIdx++;
+      }
+    });
+
+    return ops.join("\n");
+  }
+  function buildChantiersListPdfBlob(rows, sortField, sortDir, subtitleExtra){
+    try {
+      if(!rows.length) return null;
+      var pageWidth = 842, pageHeight = 595, margin = 30;
+      var logoW = 60;
+      var logoH = Math.round((logoW * LOGO_PDF_H / LOGO_PDF_W) * 100) / 100;
+      var logoTopY = pageHeight - margin;
+      var logoY = logoTopY - logoH;
+      var editedLabelY = logoTopY - 59;
+      var ruleY = Math.min(logoY, editedLabelY - 8) - 10;
+      var colHeaderY = ruleY - 18;
+      var tableTop = colHeaderY - 6;
+      var tableBottom = margin;
+      var availH = tableTop - tableBottom;
+      var rowH = 20, groupH = 22;
+
+      var lines = chantiersListLines(rows, sortField);
+      var pagesLines = [];
+      var cur = [], used = 0;
+      lines.forEach(function(ln){
+        var h = ln.type === "group" ? groupH : rowH;
+        if(used + h > availH && cur.length){ pagesLines.push(cur); cur = []; used = 0; }
+        cur.push(ln); used += h;
+      });
+      pagesLines.push(cur);
+
+      var sortLabel = sortField === "vendeur" ? ("Triée par vendu par (" + (sortDir === "desc" ? "Z→A" : "A→Z") + ")") : "Triée par client (A→Z)";
+      var line1 = rows.length + " chantier" + (rows.length > 1 ? "s" : "") + "  ·  " + sortLabel + (subtitleExtra ? "  ·  " + subtitleExtra : "");
+
+      var totalPages = pagesLines.length;
+      var pageContents = pagesLines.map(function(pl, idx){
+        return buildChantiersListPageContent(pl, pageWidth, pageHeight, margin, idx + 1, totalPages, {line1:line1}, {});
+      });
+      return assembleMultiPagePdf(pageContents, pageWidth, pageHeight);
+    } catch(err){
+      console.error("Chantiers list PDF build failed", err);
+      return null;
+    }
+  }
+  var chantiersPdfBtnEl = document.getElementById("chantiersPdfBtn");
+  if(chantiersPdfBtnEl){
+    chantiersPdfBtnEl.addEventListener("click", function(){
+      var rows = lastChantiersRows;
+      if(!rows || !rows.length){ showToast("Aucun chantier à exporter avec les filtres actuels"); return; }
+      var blob = buildChantiersListPdfBlob(rows, chantiersSortField, chantiersSortDir, chantiersTab === "closed" ? "Clôturés" : null);
+      if(!blob){ showToast("Échec de la génération du PDF"); return; }
+      var suffix = chantiersTab === "closed" ? "_Clotures" : "";
+      downloadBlob("Chantiers" + suffix + "_" + new Date().toISOString().slice(0, 10) + ".pdf", blob);
+      showToast("PDF « Liste des chantiers » téléchargé");
+    });
   }
 
   var ALL_TEAM_EXPORT_ROWS = [];
