@@ -855,6 +855,7 @@
           <div class="viewmode-switch" id="factStatutSwitch">
             <button type="button" class="vm-btn active" data-statut="all">Tous</button>
             <button type="button" class="vm-btn" data-statut="impaye">Impayés</button>
+            <button type="button" class="vm-btn" data-statut="">Pas commencé</button>
             <button type="button" class="vm-btn" data-statut="partiel">Payé partiel</button>
             <button type="button" class="vm-btn" data-statut="facture">Facturé</button>
             <button type="button" class="vm-btn" data-statut="paye">Payé</button>
@@ -1501,7 +1502,7 @@
         var v = Number(document.getElementById("ncAcompte").value) || 0;
         return v > 0 ? [{date: new Date().toLocaleDateString("fr-FR"), montant: v}] : [];
       })(),
-      factStatut: "facture",
+      factStatut: "",
       vendeur: document.getElementById("ncVendeur").value.trim(),
       suivi: document.getElementById("ncSuivi").value.trim(),
       responsable: document.getElementById("ncResponsable").value.trim(),
@@ -1544,12 +1545,19 @@
     attente:{cls:"attente", label:"En attente"}, probleme:{cls:"probleme", label:"Problème"}
   };
   var factStatutMeta = {
-    facture:{cls:"attente", label:"Facturé"}, partiel:{cls:"cours", label:"Payé partiel"},
-    paye:{cls:"ok", label:"Payé"}, impaye:{cls:"probleme", label:"Impayé"}
+    "":{cls:"", label:"", displayLabel:"Pas commencé"},
+    facture:{cls:"attente", label:"Facturé", displayLabel:"Facturé"}, partiel:{cls:"cours", label:"Payé partiel", displayLabel:"Payé partiel"},
+    paye:{cls:"ok", label:"Payé", displayLabel:"Payé"}, impaye:{cls:"probleme", label:"Impayé", displayLabel:"Impayé"}
   };
-  var FACT_STATUT_ORDER = ["facture", "partiel", "paye", "impaye"];
+  var FACT_STATUT_ORDER = ["", "facture", "partiel", "paye", "impaye"];
+  /* Clé de statut normalisée : un chantier jamais touché (champ absent) ou une valeur
+     inconnue sont traités comme « » (case vide, pas commencé) plutôt que « Facturé ». */
+  function factStatutKey(c){
+    var v = c && c.factStatut;
+    return (v !== undefined && v !== null && factStatutMeta.hasOwnProperty(v)) ? v : "";
+  }
   function factStatusSelectHtml(id, value, disabled){
-    var v = factStatutMeta[value] ? value : "facture";
+    var v = factStatutMeta.hasOwnProperty(value) ? value : "";
     var opts = FACT_STATUT_ORDER.map(function(k){
       return '<option value="' + k + '"' + (v === k ? " selected" : "") + '>' + factStatutMeta[k].label + '</option>';
     }).join("");
@@ -1931,7 +1939,7 @@
     if(!facturationTbody) return;
     var rows = sortedArray(state.chantiers, function(a, b){ return (a.client || "").localeCompare(b.client || "", "fr"); }).filter(function(c){
       if(facturationFilter === "all") return true;
-      var st = factStatutMeta[c.factStatut] ? c.factStatut : "facture";
+      var st = factStatutKey(c);
       return st === facturationFilter;
     });
     lastFacturationRows = rows;
@@ -3401,7 +3409,7 @@
 
   /* ===== Export PDF de la situation de facturation (regroupée par statut, impayés en tête) ===== */
   var FACT_PDF_COLORS = {
-    impaye:[211, 59, 59], partiel:[217, 143, 20], facture:[90, 110, 130], paye:[27, 175, 122]
+    impaye:[211, 59, 59], "":[140, 140, 140], facture:[90, 110, 130], partiel:[217, 143, 20], paye:[27, 175, 122]
   };
   var FACT_PDF_COLS = [
     {key:"client",  label:"Client",           x:30,  w:170},
@@ -3413,16 +3421,16 @@
     {key:"statut",  label:"Statut",           x:690, w:122}
   ];
   function facturationLines(rows){
-    var order = ["impaye", "partiel", "facture", "paye"];
-    var buckets = {impaye:[], partiel:[], facture:[], paye:[]};
+    var order = ["impaye", "", "facture", "partiel", "paye"];
+    var buckets = {impaye:[], "":[], facture:[], partiel:[], paye:[]};
     rows.forEach(function(c){
-      var st = factStatutMeta[c.factStatut] ? c.factStatut : "facture";
+      var st = factStatutKey(c);
       buckets[st].push(c);
     });
     var lines = [];
     order.forEach(function(st){
       if(buckets[st].length){
-        lines.push({type:"group", label: factStatutMeta[st].label.toUpperCase() + " (" + buckets[st].length + ")", key:st});
+        lines.push({type:"group", label: factStatutMeta[st].displayLabel.toUpperCase() + " (" + buckets[st].length + ")", key:st});
         buckets[st].forEach(function(c){ lines.push({type:"row", c:c}); });
       }
     });
@@ -3495,14 +3503,14 @@
         var ty = rBottom + 6.5;
         var paye = paiementsTotal(c);
         var solde = (c.montant || 0) - paye;
-        var st = factStatutMeta[c.factStatut] ? c.factStatut : "facture";
+        var st = factStatutKey(c);
         text("F1", 9, FACT_PDF_COLS[0].x + 4, ty, pdfWrapText(c.client || "", 28)[0]);
         text("F2", 8.3, FACT_PDF_COLS[1].x + 4, ty, pdfWrapText((c.commune || "") + (c.dept ? " (" + c.dept + ")" : ""), 22)[0]);
         text("F2", 8.3, FACT_PDF_COLS[2].x + 4, ty, pdfWrapText(c.vendeur || "—", 18)[0]);
         textR("F2", 8.3, FACT_PDF_COLS[3].x, FACT_PDF_COLS[3].w, ty, c.montant ? eur(c.montant) : "—");
         textR("F2", 8.3, FACT_PDF_COLS[4].x, FACT_PDF_COLS[4].w, ty, paye ? eur(paye) : "—");
         textR("F2", 8.3, FACT_PDF_COLS[5].x, FACT_PDF_COLS[5].w, ty, c.montant ? eur(solde) : "—");
-        text("F2", 8.3, FACT_PDF_COLS[6].x + 4, ty, factStatutMeta[st].label);
+        text("F2", 8.3, FACT_PDF_COLS[6].x + 4, ty, factStatutMeta[st].displayLabel);
         y = rBottom;
         rowIdx++;
       }
@@ -3555,7 +3563,7 @@
     facturationPdfBtnEl.addEventListener("click", function(){
       var rows = lastFacturationRows;
       if(!rows || !rows.length){ showToast("Aucun chantier à exporter avec ce filtre"); return; }
-      var filterLabel = facturationFilter === "all" ? null : ("Filtre : " + factStatutMeta[facturationFilter].label);
+      var filterLabel = facturationFilter === "all" ? null : ("Filtre : " + factStatutMeta[facturationFilter].displayLabel);
       var blob = buildFacturationPdfBlob(rows, filterLabel);
       if(!blob){ showToast("Échec de la génération du PDF"); return; }
       downloadBlob("Facturation_" + new Date().toISOString().slice(0, 10) + ".pdf", blob);
@@ -4263,7 +4271,7 @@
         "Statut raccordement": c.raccNA ? "Sans objet" : (c.raccStatut || "attente"),
         "Reste a faire": c.reste || "", "DICT": c.dict ? "Oui" : "Non", "PPSPS": c.ppsps ? "Oui" : "Non",
         "A planifier": c.planifier ? "Oui" : "Non", "Cloture": c.archive ? "Oui" : "Non",
-        "Statut facturation": (factStatutMeta[c.factStatut] && factStatutMeta[c.factStatut].label) || "Facturé",
+        "Statut facturation": factStatutMeta[factStatutKey(c)].displayLabel,
         "Montant EUR": c.montant || 0, "Paye EUR": paye, "Solde EUR": solde
       };
     });
