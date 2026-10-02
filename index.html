@@ -1477,6 +1477,7 @@
     var maxOrder = rows.reduce(function(m, c){ return Math.max(m, c.order || 0); }, -1);
     var id = "c" + Date.now();
     var clientName = document.getElementById("ncClient").value.trim() || "Nouveau client";
+    var assignTarget = pendingPlanningTarget;
     var data = {
       client: clientName,
       telephone: document.getElementById("ncTel").value.trim(),
@@ -1511,10 +1512,12 @@
       order: maxOrder + 1
     };
     createDoc("chantiers", id, data, function(){ renderChantiers(); });
-    var assignTarget = pendingPlanningTarget;
     closeNewChantier();
     if(assignTarget){
+      var prevChantierId = (state.planning[assignTarget] && state.planning[assignTarget].chantierId) || "";
       patchDoc("planning", assignTarget, {chantierId:id}, function(){ renderPlanning(); });
+      syncChantierPlanifier(id);
+      syncChantierPlanifier(prevChantierId);
       showToast("Chantier « " + clientName + " » créé et affecté dans le planning — partagé avec les autres postes");
     } else {
       showToast("Chantier « " + clientName + " » créé — partagé avec les autres postes");
@@ -1564,6 +1567,51 @@
     var cls = "cell-select field-input status-select " + factStatutMeta[v].cls;
     return '<select class="' + cls + '" data-col="chantiers" data-id="' + id + '" data-field="factStatut"' + (disabled ? " disabled" : "") + '>' + opts + '</select>';
   }
+
+  /* ================= synchro « À planifier » <-> grille de planning =================
+     Pour éviter les doublons de fonctionnement (un chantier coché « à planifier » alors
+     qu'il est déjà posé dans le planning à l'endroit qui correspond) : dès qu'un chantier
+     est affecté à une case d'une équipe de FORAGE, il n'a plus besoin d'être proposé pour
+     le forage ; dès qu'il est affecté à une case d'une équipe de RACCORDEMENT, pareil pour
+     le raccordement. Et dès qu'il en ressort (case vidée ou réaffectée à un autre client)
+     alors que cette étape n'est pas terminée, il redevient « à planifier » automatiquement
+     — par exemple : forage terminé mais raccordement pas encore posé dans le planning. */
+  function planningCellTeamKey(cellId){
+    /* id = <idSemaine>-<equipe>-<jour> ; l'id de semaine peut lui-même contenir un tiret
+       (ex. "s40-2026"), donc on repère l'équipe par l'avant-dernier segment plutôt que
+       par un index fixe — le jour (dernier segment, 0-4) n'en contient jamais. */
+    var parts = String(cellId).split("-");
+    return parts.length >= 2 ? parts[parts.length - 2] : null;
+  }
+  function isForageTeamKey(key){ return FORAGE_TEAM_ORDER.indexOf(key) !== -1; }
+  function isRaccTeamKey(key){ return RACC_TEAM_ORDER.indexOf(key) !== -1; }
+  function chantierAssignedToTeamType(id, teamKeyPredicate){
+    for(var key in state.planning){
+      var cell = state.planning[key];
+      if(cell && cell.chantierId === id && teamKeyPredicate(planningCellTeamKey(key))) return true;
+    }
+    return false;
+  }
+  /* Vrai si ce chantier a encore besoin d'apparaître dans « à planifier », d'après son
+     statut et sa (non-)présence dans les bonnes cases du planning. */
+  function chantierNeedsPlanifier(c, id){
+    if(!c || c.archive) return false;
+    var needsForage = (c.forageStatut === "attente") && !chantierAssignedToTeamType(id, isForageTeamKey);
+    var needsRacc = (!c.raccNA && c.forageStatut === "ok"
+      && (c.raccStatut === null || c.raccStatut === undefined || c.raccStatut === "attente"))
+      && !chantierAssignedToTeamType(id, isRaccTeamKey);
+    return needsForage || needsRacc;
+  }
+  function syncChantierPlanifier(id){
+    if(!id) return;
+    var c = state.chantiers[id];
+    if(!c) return;
+    var needed = chantierNeedsPlanifier(c, id);
+    if(!!c.planifier !== needed){
+      patchDoc("chantiers", id, {planifier: needed}, RENDER_MAP.chantiers);
+    }
+  }
+
   var typeIcon = {
     "Géothermie":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v6M9 6l3-3 3 3"/><path d="M5 21c0-5 3-9 7-9s7 4 7 9"/></svg>',
     "Forage eau":'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 4h4l-2 5-2 5H8L6 9 4 4h4"/><path d="M8 14v6M16 14v6"/></svg>',
@@ -4147,6 +4195,7 @@
     if(t.hasAttribute("data-fiche-type")){
       var newType = t.value;
       patchDoc("chantiers", id, {type: newType, raccNA: (newType !== "Géothermie")}, RENDER_MAP.chantiers);
+      syncChantierPlanifier(id);
       return;
     }
   });
@@ -4167,8 +4216,18 @@
     if(t.type === "checkbox"){ val = t.checked; }
     else if(t.getAttribute("data-numeric") === "1"){ val = Number(t.value) || 0; }
     else { val = t.value; }
+    if(col === "planning" && field === "chantierId"){
+      var prevChantierId = (state.planning[id] && state.planning[id].chantierId) || "";
+      patchDoc(col, id, {chantierId: val}, RENDER_MAP[col]);
+      syncChantierPlanifier(val);
+      syncChantierPlanifier(prevChantierId);
+      return;
+    }
     var patch = {}; patch[field] = val;
     patchDoc(col, id, patch, RENDER_MAP[col]);
+    if(col === "chantiers" && (field === "forageStatut" || field === "raccStatut")){
+      syncChantierPlanifier(id);
+    }
   });
   document.addEventListener("click", function(e){
     var toggle = e.target.closest ? e.target.closest("[data-toggle-field]") : null;
@@ -4177,6 +4236,7 @@
       var cur = state[tcol][tid] ? !!state[tcol][tid][tfield] : false;
       var tpatch = {}; tpatch[tfield] = !cur;
       patchDoc(tcol, tid, tpatch, RENDER_MAP[tcol]);
+      if(tcol === "chantiers" && tfield === "archive"){ syncChantierPlanifier(tid); }
       return;
     }
     var del = e.target.closest ? e.target.closest("[data-del-col]") : null;
