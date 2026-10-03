@@ -1863,7 +1863,16 @@
       + '<input type="checkbox" class="plan-check field-input" id="' + domId + '" data-col="chantiers" data-id="' + id + '" data-field="' + field + '"' + (value ? " checked" : "") + '>'
       + '<span></span></label>';
   }
-  function planCheckbox(c){ return boolCheckbox(c.id, "planifier", c.planifier); }
+  /* Étape à planifier : « Forage » tant que le forage n'est pas terminé, puis « Raccord. ». */
+  function planCheckbox(c){
+    var tag = "";
+    if(c.planifier && !c.archive){
+      if(c.forageStatut !== "ok"){ tag = "Forage"; }
+      else if(!c.raccNA && c.raccStatut !== "ok"){ tag = "Raccord."; }
+    }
+    return boolCheckbox(c.id, "planifier", c.planifier)
+      + (tag ? '<div style="font-size:10.5px; color:var(--ink-muted); margin-top:2px;">' + tag + '</div>' : "");
+  }
 
   var chantiersTbody = document.querySelector("#chantiersTable tbody");
   var chantiersTab = "active"; /* "active" | "closed" */
@@ -2920,14 +2929,23 @@
     {v:"_conge", label:"Congé / indisponible"},
     {v:"_new", label:"+ Nouveau chantier…"}
   ];
-  function planClientOptionsHtml(selected){
+  /* Phase attendue par la ligne du planning : une équipe de forage ne se voit proposer que les
+     chantiers dont le forage reste à faire, une équipe de raccordement que ceux dont le
+     forage est terminé et le raccordement reste à faire. Logistique / divers : tous. */
+  function chantierMatchesRow(c, rowKey){
+    if(isForageTeamKey(rowKey)) return c.forageStatut !== "ok";
+    if(isRaccTeamKey(rowKey)) return !c.raccNA && c.forageStatut === "ok" && c.raccStatut !== "ok";
+    return true;
+  }
+  function planClientOptionsHtml(selected, rowKey){
     var html = PLAN_SPECIAL_OPTIONS.map(function(o){
       return '<option value="' + o.v + '"' + (o.v === selected ? " selected" : "") + '>' + o.label + '</option>';
     }).join("");
     var chantiers = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
-      // Seuls les chantiers cochés « À planifier » proposés dans le planning — sauf le chantier
-      // déjà affecté à cette case, pour ne jamais faire disparaître une affectation existante.
-      return (!!c.planifier && !c.archive) || c.id === selected;
+      // Seuls les chantiers cochés « À planifier » ET correspondant à la phase de la ligne sont
+      // proposés — sauf le chantier déjà affecté à cette case, pour ne jamais faire disparaître
+      // une affectation existante.
+      return (!!c.planifier && !c.archive && chantierMatchesRow(c, rowKey)) || c.id === selected;
     });
     html += chantiers.map(function(c){
       return '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + '>' + c.client + " · " + c.commune + '</option>';
@@ -2939,7 +2957,7 @@
     var infoBtn = (selected && state.chantiers[selected])
       ? '<button type="button" class="plan-fiche-btn" data-fiche-id="' + selected + '" title="Voir la fiche" aria-label="Voir la fiche">' + FICHE_ICON + '</button>'
       : "";
-    return '<div class="plan-client-wrap"><select class="cell-select field-input plan-client-select" style="--c:' + colorVar + '" data-col="planning" data-id="' + id + '" data-field="chantierId">' + planClientOptionsHtml(selected) + '</select>' + infoBtn + '</div>'
+    return '<div class="plan-client-wrap"><select class="cell-select field-input plan-client-select" style="--c:' + colorVar + '" data-col="planning" data-id="' + id + '" data-field="chantierId">' + planClientOptionsHtml(selected, planningCellTeamKey(id)) + '</select>' + infoBtn + '</div>'
       + '<input type="text" class="cell-input field-input plan-note-input" placeholder="Note…" data-col="planning" data-id="' + id + '" data-field="note" value="' + String(cellData.note || "").replace(/"/g, "&quot;") + '">';
   }
   var logiStatut = { ok:{cls:"ok", label:"Prêt"}, prep:{cls:"attente", label:"En préparation"}, bloque:{cls:"probleme", label:"Manque stock"} };
