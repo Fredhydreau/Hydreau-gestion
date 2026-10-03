@@ -1608,7 +1608,7 @@
     if(!c) return;
     var needed = chantierNeedsPlanifier(c, id);
     if(!!c.planifier !== needed){
-      patchDoc("chantiers", id, {planifier: needed}, RENDER_MAP.chantiers);
+      patchDoc("chantiers", id, {planifier: needed}, function(){ RENDER_MAP.chantiers(); renderPlanning(); });
     }
   }
 
@@ -4277,6 +4277,15 @@
       return Promise.all(writes).then(function(){ return db.doc("meta/seeded").set({done:true}); });
     });
   }
+  /* Rattrapage : les chantiers déjà posés dans le planning AVANT l'automatisme (ou modifiés
+     par un autre poste) gardent sinon leur ancien drapeau « à planifier ». On recalcule donc
+     le drapeau de tous les chantiers dès que chantiers ET planning sont chargés, puis à
+     chaque mise à jour reçue. Idempotent : n'écrit que si la valeur change. */
+  var firstSnapshotDone = {};
+  function reconcileAllPlanifier(){
+    if(!firstSnapshotDone.chantiers || !firstSnapshotDone.planning) return;
+    Object.keys(state.chantiers).forEach(function(id){ syncChantierPlanifier(id); });
+  }
   function subscribeCollection(db, col, applyFn){
     db.collection(col).onSnapshot(function(snap){
       snap.docChanges().forEach(function(ch){
@@ -4284,6 +4293,10 @@
         else { var d = ch.doc.data(); d.id = ch.doc.id; state[col][ch.doc.id] = d; }
       });
       applyFn(true);
+      firstSnapshotDone[col] = true;
+      if(col === "chantiers" || col === "planning"){
+        reconcileAllPlanifier();
+      }
       setBanner("live", "Connecté — plusieurs postes peuvent modifier ce planning en temps réel");
     }, function(){
       setBanner("offline", "Connexion à l'espace partagé interrompue — nouvelle tentative en arrière-plan");
