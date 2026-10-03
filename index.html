@@ -1602,13 +1602,17 @@
       && !chantierAssignedToTeamType(id, isRaccTeamKey);
     return needsForage || needsRacc;
   }
-  function syncChantierPlanifier(id){
+  /* Un clic manuel sur la case « À planifier » pose planifierManuel : le rattrapage global
+     (fromReconcile) la respecte. Un vrai événement (affectation au planning, changement de
+     statut du forage / raccordement…) reprend la main et efface ce choix manuel. */
+  function syncChantierPlanifier(id, fromReconcile){
     if(!id) return;
     var c = state.chantiers[id];
     if(!c) return;
+    if(fromReconcile && c.planifierManuel) return;
     var needed = chantierNeedsPlanifier(c, id);
-    if(!!c.planifier !== needed){
-      patchDoc("chantiers", id, {planifier: needed}, function(){ RENDER_MAP.chantiers(); renderPlanning(); });
+    if(!!c.planifier !== needed || c.planifierManuel){
+      patchDoc("chantiers", id, {planifier: needed, planifierManuel: false}, function(){ RENDER_MAP.chantiers(); renderPlanning(); });
     }
   }
 
@@ -4224,6 +4228,7 @@
       return;
     }
     var patch = {}; patch[field] = val;
+    if(col === "chantiers" && field === "planifier"){ patch.planifierManuel = true; }
     patchDoc(col, id, patch, RENDER_MAP[col]);
     if(col === "chantiers" && (field === "forageStatut" || field === "raccStatut")){
       syncChantierPlanifier(id);
@@ -4284,7 +4289,7 @@
   var firstSnapshotDone = {};
   function reconcileAllPlanifier(){
     if(!firstSnapshotDone.chantiers || !firstSnapshotDone.planning) return;
-    Object.keys(state.chantiers).forEach(function(id){ syncChantierPlanifier(id); });
+    Object.keys(state.chantiers).forEach(function(id){ syncChantierPlanifier(id, true); });
   }
   function subscribeCollection(db, col, applyFn){
     db.collection(col).onSnapshot(function(snap){
