@@ -691,13 +691,14 @@
 
   /* ===== SIMULATION : améliorations ===== */
   #chantiersTable.compact{min-width:0; width:100%;}
-  #chantiersTable.compact thead th{padding-left:8px; padding-right:8px;}
+  #chantiersTable.compact thead th{padding-left:8px; padding-right:8px; white-space:normal; line-height:1.2;}
+  #chantiersTable.compact td.mono{white-space:nowrap;}
   #chantiersTable.compact tbody td, #chantiersTable.compact tfoot td{padding-left:8px; padding-right:8px;}
-  #chantiersTable.compact select.status-select{min-width:108px; padding-left:6px; padding-right:4px;}
+  #chantiersTable.compact select.status-select{min-width:100px; padding-left:6px; padding-right:4px;}
   #chantiersTable tfoot td.num{white-space:nowrap;}
-  #chantiersTable.compact .phase-wait{white-space:normal; display:inline-block; max-width:140px; line-height:1.25; text-align:center;}
+  #chantiersTable.compact .phase-wait{white-space:normal; display:inline-block; max-width:100px; line-height:1.25; text-align:center;}
   #chantiersTable.compact thead th{font-size:10px; letter-spacing:.2px;}
-  #chantiersTable.compact .demarches{flex-wrap:wrap; width:166px; row-gap:3px;}
+  #chantiersTable.compact .demarches{flex-wrap:wrap; width:156px; row-gap:3px;}
   #chantiersTable.compact td.client{min-width:0;}
   #chantiersTable.compact .col-more{display:none;}
   #chantiersTable thead th.cg-id{background:#e3ebed; color:#0f2b32; border-bottom-color:#0f2b32;}
@@ -2164,7 +2165,7 @@
     }).join("") + '</div>';
   }
   var CHT_GROUPS = {1:"id",2:"id",3:"id",4:"id",5:"adm",6:"adm",7:"adm",8:"tech",9:"tech",10:"tech",11:"tech",12:"tech",13:"tech",14:"adm",15:"adm",16:"adm",17:"adm",18:"fin",19:"fin",20:"fin",21:"end",22:"end",23:"end"};
-  var CHT_MORE = [4,5,6,9,10,13];
+  var CHT_MORE = [4,5,6,10,13];
   var CHT_DUP = [7,15,16]; /* Décl. validée, DICT, PPSPS : déjà dans la colonne Démarches */
   var chantiersCompact = true;
   function decorateChantiersTable(){
