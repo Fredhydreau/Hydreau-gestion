@@ -744,6 +744,27 @@
   #view-dashboard .alertrow:has(.ic.crit){border-left-color:var(--crit); background:linear-gradient(90deg, var(--crit-bg), var(--surface) 55%);}
   #view-dashboard .alertrow:has(.ic.warn){border-left-color:var(--warn); background:linear-gradient(90deg, var(--warn-bg), var(--surface) 55%);}
   #view-dashboard .stock-add-btn{background:var(--brand-teal); color:#fff; border:1.5px solid var(--brand-teal);}
+
+  /* ===== FICHE CLIENT à l'horizontale (sans défilement sur écran large) ===== */
+  #ficheOverlay .modal-panel{max-width:min(1480px, 97vw); max-height:95vh;}
+  #ficheOverlay .modal-head{padding:12px 20px 10px;}
+  #ficheOverlay .modal-body{padding:12px 20px 16px;}
+  .fiche-cols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.55fr) minmax(0,1fr); gap:6px 22px; align-items:start;}
+  .fiche-col{min-width:0;}
+  .fiche-bottom{display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:6px 22px; align-items:start; margin-top:4px; padding-top:12px; border-top:1px solid var(--border);}
+  #ficheOverlay .fiche-section{margin-bottom:12px;}
+  #ficheOverlay .fiche-section h4{margin-bottom:6px;}
+  #ficheOverlay .fiche-col-main .fiche-grid{grid-template-columns:auto 1fr auto 1fr; gap:6px 12px; align-items:center;}
+  #ficheOverlay .form-row{margin-bottom:6px;}
+  #ficheOverlay .debours-list{max-height:130px; overflow:auto;}
+  #ficheOverlay .journal-list{max-height:150px; overflow:auto;}
+  #ficheOverlay textarea.field-input{min-height:0;}
+  #ficheSondesSection .hint{font-size:11px; margin:0 0 6px !important; line-height:1.35;}
+  @media (max-width:1180px){
+    #ficheOverlay .modal-panel{max-width:520px;}
+    .fiche-cols, .fiche-bottom{display:block;}
+    #ficheOverlay .fiche-col-main .fiche-grid{grid-template-columns:1fr 1fr;}
+  }
 </style>
 </head>
 <body>
@@ -1287,12 +1308,31 @@
       </button>
     </div>
     <div class="modal-body">
+      <div class="fiche-cols">
+      <div class="fiche-col">
+      <div class="fiche-section">
+        <h4>Suivi du chantier</h4>
+        <div class="fiche-steps" id="ficheSteps"><!-- injected by JS --></div>
+      </div>
       <div class="fiche-section">
         <h4>Coordonnées</h4>
         <div class="form-row"><label for="ficheTel">Téléphone</label><input type="text" class="field-input" id="ficheTel" data-col="chantiers" data-field="telephone"></div>
         <div class="form-row"><label for="ficheEmail">Email</label><input type="email" class="field-input" id="ficheEmail" data-col="chantiers" data-field="email"></div>
         <div class="form-row"><label for="ficheAdresse">Adresse</label><input type="text" class="field-input" id="ficheAdresse" data-col="chantiers" data-field="adresse"></div>
       </div>
+      <div class="fiche-section">
+        <h4>Suivi commercial</h4>
+        <div class="form-row-2">
+          <div class="form-row"><label for="ficheVendeur">Vendu par</label><input type="text" class="field-input" id="ficheVendeur" data-col="chantiers" data-field="vendeur"></div>
+          <div class="form-row"><label for="ficheSuivi">Suivi par</label><input type="text" class="field-input" id="ficheSuivi" data-col="chantiers" data-field="suivi"></div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-row"><label for="ficheResponsable">Responsable du chantier</label><input type="text" class="field-input" id="ficheResponsable" data-col="chantiers" data-field="responsable"></div>
+          <div class="form-row"><label for="ficheChauffagiste">Chauffagiste</label><input type="text" class="field-input" id="ficheChauffagiste" data-col="chantiers" data-field="chauffagiste"></div>
+        </div>
+      </div>
+      </div>
+      <div class="fiche-col fiche-col-main">
       <div class="fiche-section">
         <h4>Chantier</h4>
         <div class="fiche-grid" id="ficheInfoGrid"><!-- injected by JS --></div>
@@ -1308,21 +1348,8 @@
         <div class="debours-list" id="sondeGroupsList"><!-- injected by JS --></div>
         <div class="debours-total" id="sondeGroupsTotal"><!-- injected by JS --></div>
       </div>
-      <div class="fiche-section">
-        <h4>Suivi du chantier</h4>
-        <div class="fiche-steps" id="ficheSteps"><!-- injected by JS --></div>
       </div>
-      <div class="fiche-section">
-        <h4>Suivi commercial</h4>
-        <div class="form-row-2">
-          <div class="form-row"><label for="ficheVendeur">Vendu par</label><input type="text" class="field-input" id="ficheVendeur" data-col="chantiers" data-field="vendeur"></div>
-          <div class="form-row"><label for="ficheSuivi">Suivi par</label><input type="text" class="field-input" id="ficheSuivi" data-col="chantiers" data-field="suivi"></div>
-        </div>
-        <div class="form-row-2">
-          <div class="form-row"><label for="ficheResponsable">Responsable du chantier</label><input type="text" class="field-input" id="ficheResponsable" data-col="chantiers" data-field="responsable"></div>
-          <div class="form-row"><label for="ficheChauffagiste">Chauffagiste</label><input type="text" class="field-input" id="ficheChauffagiste" data-col="chantiers" data-field="chauffagiste"></div>
-        </div>
-      </div>
+      <div class="fiche-col">
       <div class="fiche-section" id="ficheSectionPaiements">
         <h4>Paiements reçus</h4>
         <div class="debours-add">
@@ -1347,6 +1374,9 @@
         <h4>Reste à faire</h4>
         <textarea id="ficheReste" class="field-input" rows="2" data-col="chantiers" data-field="reste"></textarea>
       </div>
+      </div>
+      </div>
+      <div class="fiche-bottom">
       <div class="fiche-section">
         <h4>Journal de suivi</h4>
         <div class="journal-add">
@@ -1361,7 +1391,7 @@
         </div>
         <div class="journal-list" id="journalList"><!-- injected by JS --></div>
       </div>
-      <div class="fiche-actions" style="flex-wrap:wrap;">
+      <div class="fiche-actions" style="flex-wrap:wrap; align-content:flex-start;">
         <button type="button" class="btn-primary" id="ficheForeurBtn" style="justify-content:center; flex:1 1 45%;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/></svg>
           Fiche foreur
@@ -1374,6 +1404,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M8 12.5V7a4 4 0 0 1 8 0v9a2.6 2.6 0 0 1-5.2 0V8.5"/></svg>
           Voir les documents
         </button>
+      </div>
       </div>
     </div>
   </div>
