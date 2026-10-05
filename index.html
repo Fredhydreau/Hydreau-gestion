@@ -690,18 +690,28 @@
   .form-row[hidden]{display:none !important;}
 
   /* ===== SIMULATION : améliorations ===== */
-  #chantiersTable.compact{min-width:0;}
+  #chantiersTable.compact{min-width:0; width:100%;}
+  #chantiersTable.compact thead th{padding-left:8px; padding-right:8px;}
+  #chantiersTable.compact tbody td, #chantiersTable.compact tfoot td{padding-left:8px; padding-right:8px;}
+  #chantiersTable.compact select.status-select{min-width:108px; padding-left:6px; padding-right:4px;}
+  #chantiersTable tfoot td.num{white-space:nowrap;}
+  #chantiersTable.compact .phase-wait{white-space:normal; display:inline-block; max-width:140px; line-height:1.25; text-align:center;}
+  #chantiersTable.compact thead th{font-size:10px; letter-spacing:.2px;}
+  #chantiersTable.compact .demarches{flex-wrap:wrap; width:166px; row-gap:3px;}
+  #chantiersTable.compact td.client{min-width:0;}
   #chantiersTable.compact .col-more{display:none;}
   #chantiersTable thead th.cg-id{background:#e3ebed; color:#0f2b32; border-bottom-color:#0f2b32;}
   #chantiersTable thead th.cg-adm{background:#e4eefc; color:#1d5fb0; border-bottom-color:#2a78d6;}
   #chantiersTable thead th.cg-tech{background:#dff3f0; color:#08655d; border-bottom-color:#0d8f83;}
   #chantiersTable thead th.cg-fin{background:#e3ebed; color:#0f2b32; border-bottom-color:#0f2b32;}
   #chantiersTable thead th.cg-end{background:#eef3f3; color:var(--ink-soft); border-bottom-color:#b7c8ca;}
-  #chantiersTable:not(.compact) .col-compact-only{display:none;}
+  #chantiersTable .col-dup{display:none;}
   .demarches{display:inline-flex; gap:4px; flex-wrap:nowrap;}
   .demarche{border:1px solid #e5b8b8; background:#fdeeee; color:#a52e2e; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;}
   .demarche.yes{border-color:#9ad3cc; background:#dff3f0; color:#08655d;}
   .demarche:hover{filter:brightness(.96);}
+  .nc-checks [hidden]{display:none !important;}
+  .nc-checks .nc-date{width:112px; padding:4px 8px; font-size:12.5px;}
   .chip-select{border:1px solid var(--border); background:var(--surface); color:var(--ink-soft); padding:6px 10px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;}
   .backup-banner{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:9px 14px; margin-bottom:12px; border-radius:10px; background:#fef5df; color:#8a5c00; font-size:12.5px; font-weight:600;}
   .nc-more{margin:6px 0 10px; border:1px dashed var(--border); border-radius:10px; padding:8px 12px;}
@@ -1216,7 +1226,7 @@
         <div class="form-row" id="ncSondesRow"><label for="ncSondes">Sondes géothermiques — profondeurs en m (80 à 200), séparées par des virgules</label><input type="text" id="ncSondes" placeholder="ex : 120, 120"></div>
         <div class="form-row" id="ncDepthRow" hidden><label for="ncDepth">Profondeur du forage (m)</label><input type="number" id="ncDepth" min="0"></div>
           <div class="form-row"><label for="ncMontant">Montant (€)</label><input type="number" id="ncMontant" min="0" step="1"></div>
-<div class="form-row nc-demarches"><label>Démarches déjà faites</label><div class="nc-checks"><label><input type="checkbox" id="ncGmi"> Télé-GMI</label><label><input type="checkbox" id="ncPpsps"> PPSPS</label><label><input type="checkbox" id="ncDict"> DICT</label></div></div>
+<div class="form-row nc-demarches"><label>Démarches déjà faites</label><div class="nc-checks"><label id="ncGmiLbl"><input type="checkbox" id="ncGmi"> Télé-GMI</label><label id="ncDepotLbl" hidden><input type="checkbox" id="ncDepot"> Dépôt de dossier</label><input type="text" id="ncDepotDate" class="nc-date" placeholder="jj/mm/aaaa" hidden><label id="ncDdtmLbl" hidden><input type="checkbox" id="ncDdtm"> Accord DDTM</label><label><input type="checkbox" id="ncPpsps"> PPSPS</label><label><input type="checkbox" id="ncDict"> DICT</label></div></div>
 <details class="nc-more"><summary>Plus de détails (facultatif) — à compléter plus tard dans la fiche</summary>
 <div class="form-row-2">          <div class="form-row"><label for="ncTel">Téléphone</label><input type="text" id="ncTel" placeholder="02 XX XX XX XX"></div>          <div class="form-row"><label for="ncEmail">Email</label><input type="email" id="ncEmail"></div></div>
         <div class="form-row"><label for="ncAdresse">Adresse</label><input type="text" id="ncAdresse" placeholder="N° et rue"></div>
@@ -1560,6 +1570,11 @@
     var v = this.value;
     document.getElementById("ncSondesRow").hidden = v !== "Géothermie";
     document.getElementById("ncDepthRow").hidden = v !== "Forage eau";
+    var eau = v === "Forage eau";
+    document.getElementById("ncGmiLbl").hidden = eau;
+    document.getElementById("ncDepotLbl").hidden = !eau;
+    document.getElementById("ncDepotDate").hidden = !eau;
+    document.getElementById("ncDdtmLbl").hidden = !eau;
   });
   newChantierForm.addEventListener("submit", function(e){
     e.preventDefault();
@@ -1584,7 +1599,9 @@
       dept: document.getElementById("ncDept").value,
       mandat: false,
       declaration: document.getElementById("ncDeclaration").value.trim() || null,
-      declarationValidee: !!document.getElementById("ncGmi").checked,
+      declarationValidee: type !== "Forage eau" && !!document.getElementById("ncGmi").checked,
+      depotDossier: (type === "Forage eau" && document.getElementById("ncDepot").checked) ? (document.getElementById("ncDepotDate").value.trim() || new Date().toLocaleDateString("fr-FR")) : "",
+      accordDdtm: type === "Forage eau" && !!document.getElementById("ncDdtm").checked,
       type: type,
       sondes: sondes,
       depth: depth,
@@ -2096,16 +2113,28 @@
       ve.value = cur;
     }
   }
+  function shortDate(d){
+    var m = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/.exec(String(d || "").trim());
+    return m ? (("0" + m[1]).slice(-2) + "/" + ("0" + m[2]).slice(-2)) : String(d || "");
+  }
   function demarchesHtml(c){
-    var items = [["declarationValidee","Télé-GMI"],["ppsps","PPSPS"],["dict","DICT"]];
-    return '<div class="demarches">' + items.map(function(it){
+    var isEau = c.type === "Forage eau";
+    var items = isEau
+      ? [["accordDdtm","Accord DDTM"],["ppsps","PPSPS"],["dict","DICT"]]
+      : [["declarationValidee","Télé-GMI"],["ppsps","PPSPS"],["dict","DICT"]];
+    var depot = "";
+    if(isEau){
+      var dOn = !!(c.depotDossier && String(c.depotDossier).trim());
+      depot = '<button type="button" class="demarche demarche-depot ' + (dOn ? "yes" : "no") + '" data-id="' + c.id + '" title="' + (dOn ? "Dossier déposé le " + attrVal(c.depotDossier) + " (cliquer pour retirer)" : "Dépôt de dossier : à faire (cliquer pour saisir la date)") + '">' + (dOn ? "✓ " : "") + 'Dépôt dossier' + (dOn ? " · " + shortDate(c.depotDossier) : "") + '</button>';
+    }
+    return '<div class="demarches">' + depot + items.map(function(it){
       var on = !!c[it[0]];
       return '<button type="button" class="demarche ' + (on ? "yes" : "no") + '" data-col="chantiers" data-id="' + c.id + '" data-toggle-field="' + it[0] + '" title="' + it[1] + (on ? " : fait" : " : à faire") + '">' + (on ? "✓ " : "") + it[1] + '</button>';
     }).join("") + '</div>';
   }
   var CHT_GROUPS = {1:"id",2:"id",3:"id",4:"id",5:"adm",6:"adm",7:"adm",8:"tech",9:"tech",10:"tech",11:"tech",12:"tech",13:"tech",14:"adm",15:"adm",16:"adm",17:"adm",18:"fin",19:"fin",20:"fin",21:"end",22:"end",23:"end"};
-  var CHT_MORE = [4,5,6,7,9,10,13,15,16];
-  var CHT_COMPACT_ONLY = 14;
+  var CHT_MORE = [4,5,6,9,10,13];
+  var CHT_DUP = [7,15,16]; /* Décl. validée, DICT, PPSPS : déjà dans la colonne Démarches */
   var chantiersCompact = true;
   function decorateChantiersTable(){
     var table = document.getElementById("chantiersTable");
@@ -2120,7 +2149,7 @@
         var n = i + 1;
         cells[i].classList.add("cg-" + CHT_GROUPS[n]);
         if(CHT_MORE.indexOf(n) !== -1) cells[i].classList.add("col-more");
-        if(n === CHT_COMPACT_ONLY) cells[i].classList.add("col-compact-only");
+        if(CHT_DUP.indexOf(n) !== -1) cells[i].classList.add("col-dup");
       }
     }
     tag(headRow.children);
@@ -2136,7 +2165,7 @@
       tag(tr.children);
     });
     var foot = table.querySelector("tfoot td");
-    if(foot) foot.setAttribute("colspan", "17");
+    if(foot) foot.setAttribute("colspan", String(chantiersCompact ? 17 - CHT_MORE.length - CHT_DUP.length : 17 - CHT_DUP.length));
     table.classList.toggle("compact", chantiersCompact);
     var tb = document.getElementById("colsToggleBtn");
     if(tb) tb.textContent = chantiersCompact ? "Plus de colonnes (+" + CHT_MORE.length + ")" : "Moins de colonnes";
@@ -2172,7 +2201,7 @@
   }
   (function(){
     var b = document.getElementById("backupNowBtn");
-    if(b) b.addEventListener("click", function(){ exportAllToExcel(); setLastBackup(Date.now()); refreshBackupBanner(); });
+    if(b) b.addEventListener("click", function(){ setLastBackup(Date.now()); refreshBackupBanner(); try{ exportAllToExcel(); }catch(err){ console.error("export Excel", err); setLastBackup(0); try{ localStorage.removeItem(BACKUP_KEY); }catch(e2){} refreshBackupBanner(); } });
     var ex = document.getElementById("exportExcelBtn");
     if(ex) ex.addEventListener("click", function(){ setLastBackup(Date.now()); refreshBackupBanner(); });
     refreshBackupBanner();
@@ -2566,6 +2595,8 @@
       ["Longueur totale", ficheLongueurCell(c)],
       ["Mandat", boolToggleHtml(c.id, "mandat", c.mandat)],
       ["Date de déclaration", '<input type="text" class="field-input" placeholder="jj/mm/aaaa" data-col="chantiers" data-id="' + c.id + '" data-field="declaration" value="' + attrVal(c.declaration) + '">'],
+      c.type === "Forage eau" ? ["Dépôt de dossier (date)", '<input type="text" class="field-input" placeholder="jj/mm/aaaa — vide si pas déposé" data-col="chantiers" data-id="' + c.id + '" data-field="depotDossier" value="' + attrVal(c.depotDossier) + '">'] : null,
+      c.type === "Forage eau" ? ["Accord DDTM", boolToggleHtml(c.id, "accordDdtm", c.accordDdtm)] : null,
       ["Statut du forage", statusSelectHtml(c.id, "forageStatut", c.forageStatut)],
       ["Raccordement", raccCell(c)],
       ["Montant (€)", '<input type="number" min="0" step="1" class="field-input" data-col="chantiers" data-id="' + c.id + '" data-field="montant" data-numeric="1" value="' + (c.montant || 0) + '">'],
@@ -2575,6 +2606,7 @@
       ["Débours", eur(deboursTotal(c))],
       ["Marge", eur((c.montant || 0) - deboursTotal(c))]
     ];
+    rows = rows.filter(function(r){ return r; });
     grid.innerHTML = rows.map(function(r){ return '<div class="k">' + r[0] + '</div><div class="v">' + r[1] + '</div>'; }).join("");
   }
   function deboursTotal(c){
@@ -4268,6 +4300,7 @@
         }
         var inTeamPlan = chantierAssignedToTeamType(c.id, isForageTeamKey) || chantierAssignedToTeamType(c.id, isRaccTeamKey);
         if(inTeamPlan && !c.mandat){ items.push({crit:true, title:c.client, txt:"Planifié mais mandat non signé", where:c.commune + " (" + c.dept + ")"}); }
+        if(inTeamPlan && c.type === "Forage eau" && !c.accordDdtm){ items.push({crit:true, title:c.client, txt:"Planifié mais accord DDTM manquant" + (c.depotDossier ? " (dossier déposé le " + c.depotDossier + ")" : " (dossier non déposé)"), where:c.commune + " (" + c.dept + ")"}); }
         if(inTeamPlan && !c.dict){ items.push({crit:true, title:c.client, txt:"Planifié mais DICT manquante", where:c.commune + " (" + c.dept + ")"}); }
         if(c.forageStatut === "ok" && !c.raccNA && (c.raccStatut === null || c.raccStatut === undefined || c.raccStatut === "attente") && !chantierAssignedToTeamType(c.id, isRaccTeamKey)){
           items.push({crit:false, title:c.client, txt:"Forage terminé — raccordement pas encore planifié", where:c.commune + " (" + c.dept + ")"});
@@ -4487,6 +4520,22 @@
     }
   });
   document.addEventListener("click", function(e){
+    var depotBtn = e.target.closest ? e.target.closest(".demarche-depot") : null;
+    if(depotBtn){
+      var did0 = depotBtn.getAttribute("data-id");
+      var cur0 = state.chantiers[did0];
+      if(!cur0) return;
+      if(cur0.depotDossier && String(cur0.depotDossier).trim()){
+        patchDoc("chantiers", did0, {depotDossier: ""}, RENDER_MAP.chantiers);
+      } else {
+        var today = new Date().toLocaleDateString("fr-FR");
+        var ans = window.prompt("Date de dépôt du dossier (jj/mm/aaaa) :", today);
+        if(ans === null) return;
+        ans = ans.trim() || today;
+        patchDoc("chantiers", did0, {depotDossier: ans}, RENDER_MAP.chantiers);
+      }
+      return;
+    }
     var toggle = e.target.closest ? e.target.closest("[data-toggle-field]") : null;
     if(toggle){
       var tcol = toggle.getAttribute("data-col"), tid = toggle.getAttribute("data-id"), tfield = toggle.getAttribute("data-toggle-field");
@@ -4596,7 +4645,7 @@
       return {
         "Client": c.client || "", "Commune": c.commune || "", "Departement": c.dept || "",
         "Vendu par": c.vendeur || "", "Chauffagiste": c.chauffagiste || "", "Responsable": c.responsable || "", "Mandat signe": c.mandat ? "Oui" : "Non",
-        "Date de declaration": c.declaration || "", "Declaration validee": c.declarationValidee ? "Oui" : "Non",
+        "Date de declaration": c.declaration || "", "Declaration validee": c.declarationValidee ? "Oui" : "Non", "Depot dossier (date)": c.depotDossier || "", "Accord DDTM": c.accordDdtm ? "Oui" : "Non",
         "Type": c.type || "", "Statut forage": c.forageStatut || "",
         "Statut raccordement": c.raccNA ? "Sans objet" : (c.raccStatut || "attente"),
         "Reste a faire": c.reste || "", "DICT": c.dict ? "Oui" : "Non", "PPSPS": c.ppsps ? "Oui" : "Non",
