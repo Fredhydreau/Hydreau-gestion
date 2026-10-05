@@ -632,6 +632,108 @@
     main{padding:16px 14px 50px;}
     .topbar{padding:14px 16px; padding-top:calc(14px + env(safe-area-inset-top,0px));}
   }
+  /* ===== Variante « couleurs du logo » — version claire, lisibilité du tableau Chantiers ===== */
+  :root{ --navy:#0f2b32; --teal-tint:#e6f6f4; --blue-tint:#e8f0fc; --sky-tint:#f5fafa; }
+  .view > .hint{font-size:12px; color:var(--ink-soft); margin:2px 0 14px; line-height:1.5;}
+  .tablecard{border-color:#d3e4e4;}
+  /* en-tête clair : pastel par groupe + trait de couleur dessous (bleu nuit, bleu, turquoise du logo) */
+  #chantiersTable thead th{font-size:10.5px; padding:11px 12px; border-bottom:3px solid transparent; color:var(--navy);}
+  #chantiersTable thead th:nth-child(-n+4){background:#e3ebed; border-bottom-color:var(--navy);}
+  #chantiersTable thead th:nth-child(n+5):nth-child(-n+7){background:#e4eefc; color:#1d5fb0; border-bottom-color:#2a78d6;}
+  #chantiersTable thead th:nth-child(n+8):nth-child(-n+10){background:#dff3f0; color:#08655d; border-bottom-color:#0d8f83;}
+  #chantiersTable thead th:nth-child(n+11):nth-child(-n+13){background:#d2eeea; color:#08655d; border-bottom-color:#0d8f83;}
+  #chantiersTable thead th:nth-child(n+14):nth-child(-n+16){background:#e4eefc; color:#1d5fb0; border-bottom-color:#2a78d6;}
+  #chantiersTable thead th:nth-child(n+17):nth-child(-n+19){background:#e3ebed; border-bottom-color:var(--navy);}
+  #chantiersTable thead th:nth-child(n+20){background:#eef3f3; color:var(--ink-soft); border-bottom-color:#b7c8ca;}
+  #chantiersTable .sortable-th .sort-arrow{color:inherit;}
+  /* lignes : fond blanc, zébrage très léger, survol turquoise clair, liseré selon le type */
+  #chantiersTable tbody tr:nth-child(even){background:var(--sky-tint);}
+  #chantiersTable tbody tr:hover{background:#e6f6f4;}
+  #chantiersTable tbody td{padding:10px 12px; border-bottom:1px solid #e2ecec;}
+  #chantiersTable thead th:first-child{position:sticky; left:0; z-index:3;}
+  #chantiersTable tbody td.client{border-left:5px solid var(--brand-teal); position:sticky; left:0; z-index:2; background:var(--surface); box-shadow:2px 0 0 #e2ecec;}
+  #chantiersTable tbody tr:nth-child(even) td.client{background:var(--sky-tint);}
+  #chantiersTable tbody tr:hover td.client{background:#e6f6f4;}
+  #chantiersTable tbody tr.t-eau td.client{border-left-color:#2a78d6;}
+  #chantiersTable tbody tr.t-pompe td.client{border-left-color:#eda100;}
+  #chantiersTable tbody tr.t-dep td.client{border-left-color:#eb6834;}
+  #chantiersTable tbody tr.t-autre td.client{border-left-color:#a9b9bb;}
+  #chantiersTable .client-link{font-size:16px; font-weight:800; line-height:1.2; color:var(--navy);}
+  #chantiersTable tbody td.client{min-width:150px;}
+  /* type : pastille */
+  .type-tag{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:700; background:var(--teal-tint); color:var(--brand-teal-ink); white-space:nowrap;}
+  .type-tag svg{width:14px; height:14px;}
+  tr.t-eau .type-tag{background:var(--blue-tint); color:#1d5fb0;}
+  tr.t-pompe .type-tag{background:#fdf4de; color:#8a5c00;}
+  tr.t-dep .type-tag{background:#fdeae1; color:#b04718;}
+  tr.t-autre .type-tag{background:#eef3f3; color:var(--ink-soft);}
+  /* statuts : pastilles pastel */
+  #chantiersTable select.status-select{border-radius:20px; padding:4px 8px; font-size:12px; border:1px solid transparent; min-width:120px;}
+  #chantiersTable select.status-select.ok{background:#e4f6e1; color:#0b6b0b;}
+  #chantiersTable select.status-select.cours{background:#e2edfc; color:#1d5fb0;}
+  #chantiersTable select.status-select.attente{background:#fef5df; color:#8a5c00;}
+  #chantiersTable select.status-select.probleme{background:#fde8e8; color:#a32121;}
+  #chantiersTable .phase-wait{display:inline-block; padding:3px 9px; border-radius:20px; background:#eef3f3; color:var(--ink-muted); font-size:11.5px; font-weight:600;}
+  /* Oui / Non */
+  #chantiersTable .bool-pill.yes{background:#d2eeea; color:#08655d;}
+  #chantiersTable .bool-pill.no{background:#eef3f3; color:#8a9fa2;}
+  #chantiersTable .plan-check{accent-color:#2a78d6;}
+  /* montants */
+  #chantiersTable td.num{font-weight:600; color:var(--navy);}
+  #chantiersTable td.num.zero{color:var(--ink-muted); font-weight:400;}
+  #chantiersTable td.num.due{color:#c42b2b; font-weight:800;}
+  #chantiersTable tfoot td{background:#e3f4f2; color:var(--navy); border-top:3px solid var(--brand-teal);}
+  /* filtres */
+  .chip.active{background:var(--navy); border-color:var(--navy);}
+  .tablewrap{scrollbar-color:var(--brand-teal) var(--surface-2);}
+
+  .form-row[hidden]{display:none !important;}
+
+  /* ===== SIMULATION : améliorations ===== */
+  #chantiersTable.compact{min-width:0;}
+  #chantiersTable.compact .col-more{display:none;}
+  #chantiersTable thead th.cg-id{background:#e3ebed; color:#0f2b32; border-bottom-color:#0f2b32;}
+  #chantiersTable thead th.cg-adm{background:#e4eefc; color:#1d5fb0; border-bottom-color:#2a78d6;}
+  #chantiersTable thead th.cg-tech{background:#dff3f0; color:#08655d; border-bottom-color:#0d8f83;}
+  #chantiersTable thead th.cg-fin{background:#e3ebed; color:#0f2b32; border-bottom-color:#0f2b32;}
+  #chantiersTable thead th.cg-end{background:#eef3f3; color:var(--ink-soft); border-bottom-color:#b7c8ca;}
+  #chantiersTable:not(.compact) .col-compact-only{display:none;}
+  .demarches{display:inline-flex; gap:4px; flex-wrap:nowrap;}
+  .demarche{border:1px solid #e5b8b8; background:#fdeeee; color:#a52e2e; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap;}
+  .demarche.yes{border-color:#9ad3cc; background:#dff3f0; color:#08655d;}
+  .demarche:hover{filter:brightness(.96);}
+  .chip-select{border:1px solid var(--border); background:var(--surface); color:var(--ink-soft); padding:6px 10px; border-radius:20px; font-size:12px; font-weight:600; cursor:pointer;}
+  .backup-banner{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:9px 14px; margin-bottom:12px; border-radius:10px; background:#fef5df; color:#8a5c00; font-size:12.5px; font-weight:600;}
+  .nc-more{margin:6px 0 10px; border:1px dashed var(--border); border-radius:10px; padding:8px 12px;}
+  .nc-more summary{cursor:pointer; font-size:12.5px; font-weight:700; color:var(--brand-teal-ink);}
+  .nc-more[open] summary{margin-bottom:10px;}
+  .nc-checks{display:flex; gap:18px; flex-wrap:wrap;} .nc-checks label{display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; text-transform:none; letter-spacing:0; white-space:nowrap; margin:0;} .nc-checks input[type=checkbox]{width:auto; margin:0; flex:none;}
+
+  /* ===== TABLEAU DE BORD aux couleurs du logo ===== */
+  :root{ --logo-navy:#0f3b4a; --logo-sky:#7fd0dc; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --logo-navy:#2c6f86; --logo-sky:#7fd0dc; } }
+  :root[data-theme="dark"]{ --logo-navy:#2c6f86; --logo-sky:#7fd0dc; }
+  #view-dashboard .kpi{position:relative; overflow:hidden; padding-left:22px; background:linear-gradient(135deg, var(--k-tint) 0%, var(--surface) 70%); border-color:var(--k-line);}
+  #view-dashboard .kpi::before{content:""; position:absolute; left:0; top:0; bottom:0; width:6px; background:var(--k-main);}
+  #view-dashboard .kpi .label{color:var(--k-ink);}
+  #view-dashboard .kpi .value{color:var(--ink);}
+  #view-dashboard .kpi-grid .kpi:nth-child(1){--k-main:#0d8f83; --k-tint:#dff3f0; --k-line:#b5e0da; --k-ink:#08655d;}
+  #view-dashboard .kpi-grid .kpi:nth-child(2){--k-main:#2a78d6; --k-tint:#e4eefc; --k-line:#bcd5f4; --k-ink:#1d5fb0;}
+  #view-dashboard .kpi-grid .kpi:nth-child(3){--k-main:#0f3b4a; --k-tint:#e3ebed; --k-line:#c3d2d6; --k-ink:#0f3b4a;}
+  #view-dashboard .kpi-grid .kpi:nth-child(4){--k-main:#eb6834; --k-tint:#fdeee6; --k-line:#f5cdb9; --k-ink:#b8431d;}
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) #view-dashboard .kpi{--k-tint:var(--surface-2); --k-line:var(--border); --k-ink:var(--brand-teal-ink);} }
+  :root[data-theme="dark"] #view-dashboard .kpi{--k-tint:var(--surface-2); --k-line:var(--border); --k-ink:var(--brand-teal-ink);}
+  #view-dashboard .card:not(.kpi){border-top:3px solid var(--brand-teal);}
+  #view-dashboard .grid-2 > .card:nth-child(2){border-top-color:var(--brand-blue);}
+  #view-dashboard > .card{border-top-color:var(--logo-sky);}
+  #view-dashboard .card:not(.kpi) h2{color:var(--brand-teal-ink);}
+  #view-dashboard .grid-2 > .card:nth-child(2) h2{color:var(--info-ink);}
+  #view-dashboard .track{background:var(--brand-sky);}
+  #view-dashboard .stackbar{height:16px; background:var(--brand-sky); border-color:var(--brand-sky);}
+  #view-dashboard .alertrow{background:var(--surface); border-left:4px solid var(--logo-sky);}
+  #view-dashboard .alertrow:has(.ic.crit){border-left-color:var(--crit); background:linear-gradient(90deg, var(--crit-bg), var(--surface) 55%);}
+  #view-dashboard .alertrow:has(.ic.warn){border-left-color:var(--warn); background:linear-gradient(90deg, var(--warn-bg), var(--surface) 55%);}
+  #view-dashboard .stock-add-btn{background:var(--brand-teal); color:#fff; border:1.5px solid var(--brand-teal);}
 </style>
 </head>
 <body>
@@ -693,7 +795,7 @@
       </div>
       <div class="searchbox">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="searchInput" type="text" placeholder="Rechercher un client, une commune…" />
+        <input id="searchInput" type="text" placeholder="Client, commune, téléphone, adresse, vendeur…" />
       </div>
       <button class="btn-secondary" id="exportExcelBtn" title="Exporter toutes les données en Excel">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v13m0 0-4-4m4 4 4-4M5 21h14"/></svg>
@@ -716,6 +818,7 @@
 
     <main>
       <div class="sync-banner" id="syncBanner" hidden></div>
+      <div class="backup-banner" id="backupBanner" hidden><span id="backupText"></span><button type="button" class="btn-secondary" id="backupNowBtn">Sauvegarder maintenant (Excel)</button></div>
 
       <!-- ===================== DASHBOARD ===================== -->
       <section class="view active" id="view-dashboard">
@@ -815,6 +918,8 @@
           <button class="chip" data-filter="type" data-val="Autre">Autre</button>
           <div class="filter-sep"></div>
           <button class="chip" id="planifierToggle">À planifier uniquement</button>
+          <select class="chip-select" id="filterEquipe" title="Filtrer par équipe"><option value="">Toutes les équipes</option></select>
+          <select class="chip-select" id="filterVendeur" title="Filtrer par vendeur"><option value="">Tous les vendeurs</option></select>
           <div class="filter-sep"></div>
           <button class="chip" id="clearResteBtn" title="Vider le champ « Reste à faire » de tous les chantiers" style="color:var(--crit-ink);">Vider tous les « Reste à faire »</button>
         </div>
@@ -1099,11 +1204,6 @@
     <div class="modal-body">
       <form id="newChantierForm">
         <div class="form-row"><label for="ncClient">Client</label><input type="text" id="ncClient" required></div>
-        <div class="form-row-2">
-          <div class="form-row"><label for="ncTel">Téléphone</label><input type="text" id="ncTel" placeholder="02 XX XX XX XX"></div>
-          <div class="form-row"><label for="ncEmail">Email</label><input type="email" id="ncEmail"></div>
-        </div>
-        <div class="form-row"><label for="ncAdresse">Adresse</label><input type="text" id="ncAdresse" placeholder="N° et rue"></div>
         <div class="form-row"><label for="ncCommune">Commune</label><input type="text" id="ncCommune"></div>
         <div class="form-row-2">
           <div class="form-row"><label for="ncDept">Département</label>
@@ -1115,19 +1215,16 @@
         </div>
         <div class="form-row" id="ncSondesRow"><label for="ncSondes">Sondes géothermiques — profondeurs en m (80 à 200), séparées par des virgules</label><input type="text" id="ncSondes" placeholder="ex : 120, 120"></div>
         <div class="form-row" id="ncDepthRow" hidden><label for="ncDepth">Profondeur du forage (m)</label><input type="number" id="ncDepth" min="0"></div>
-        <div class="form-row"><label for="ncDeclaration">Date de déclaration</label><input type="text" id="ncDeclaration" placeholder="jj/mm/aaaa"></div>
-        <div class="form-row-2">
           <div class="form-row"><label for="ncMontant">Montant (€)</label><input type="number" id="ncMontant" min="0" step="1"></div>
+<div class="form-row nc-demarches"><label>Démarches déjà faites</label><div class="nc-checks"><label><input type="checkbox" id="ncGmi"> Télé-GMI</label><label><input type="checkbox" id="ncPpsps"> PPSPS</label><label><input type="checkbox" id="ncDict"> DICT</label></div></div>
+<details class="nc-more"><summary>Plus de détails (facultatif) — à compléter plus tard dans la fiche</summary>
+<div class="form-row-2">          <div class="form-row"><label for="ncTel">Téléphone</label><input type="text" id="ncTel" placeholder="02 XX XX XX XX"></div>          <div class="form-row"><label for="ncEmail">Email</label><input type="email" id="ncEmail"></div></div>
+        <div class="form-row"><label for="ncAdresse">Adresse</label><input type="text" id="ncAdresse" placeholder="N° et rue"></div>
+        <div class="form-row"><label for="ncDeclaration">Date de déclaration</label><input type="text" id="ncDeclaration" placeholder="jj/mm/aaaa"></div>
           <div class="form-row"><label for="ncAcompte">Acompte à la commande (€)</label><input type="number" id="ncAcompte" min="0" step="1"></div>
-        </div>
-        <div class="form-row-2">
-          <div class="form-row"><label for="ncVendeur">Vendu par</label><input type="text" id="ncVendeur" placeholder="Nom du commercial"></div>
-          <div class="form-row"><label for="ncSuivi">Suivi par</label><input type="text" id="ncSuivi" placeholder="Nom du suivi commercial"></div>
-        </div>
-        <div class="form-row-2">
-          <div class="form-row"><label for="ncResponsable">Responsable du chantier</label><input type="text" id="ncResponsable" placeholder="Nom du responsable terrain"></div>
-          <div class="form-row"><label for="ncChauffagiste">Chauffagiste</label><input type="text" id="ncChauffagiste" placeholder="Nom du chauffagiste"></div>
-        </div>
+<div class="form-row-2">          <div class="form-row"><label for="ncVendeur">Vendu par</label><input type="text" id="ncVendeur" placeholder="Nom du commercial"></div>          <div class="form-row"><label for="ncSuivi">Suivi par</label><input type="text" id="ncSuivi" placeholder="Nom du suivi commercial"></div></div>
+<div class="form-row-2">          <div class="form-row"><label for="ncResponsable">Responsable du chantier</label><input type="text" id="ncResponsable" placeholder="Nom du responsable terrain"></div>          <div class="form-row"><label for="ncChauffagiste">Chauffagiste</label><input type="text" id="ncChauffagiste" placeholder="Nom du chauffagiste"></div></div>
+</details>
         <button type="submit" class="btn-primary" style="width:100%; justify-content:center; margin-top:6px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
           Créer le chantier
@@ -1487,7 +1584,7 @@
       dept: document.getElementById("ncDept").value,
       mandat: false,
       declaration: document.getElementById("ncDeclaration").value.trim() || null,
-      declarationValidee: false,
+      declarationValidee: !!document.getElementById("ncGmi").checked,
       type: type,
       sondes: sondes,
       depth: depth,
@@ -1496,8 +1593,8 @@
       raccStatut: null,
       reste: "",
       planifier: true,
-      dict: false,
-      ppsps: false,
+      dict: !!document.getElementById("ncDict").checked,
+      ppsps: !!document.getElementById("ncPpsps").checked,
       montant: Number(document.getElementById("ncMontant").value) || 0,
       paiements: (function(){
         var v = Number(document.getElementById("ncAcompte").value) || 0;
@@ -1523,6 +1620,7 @@
       showToast("Chantier « " + clientName + " » créé — partagé avec les autres postes");
       var chantiersNav = document.querySelector('.navitem[data-view="chantiers"]');
       if(chantiersNav) chantiersNav.click();
+      setTimeout(function(){ openFiche(id); }, 60);
     }
   });
 
@@ -1910,13 +2008,21 @@
     var type = typeBtn ? typeBtn.getAttribute("data-val") : "all";
     var q = (document.getElementById("searchInput").value || "").trim().toLowerCase();
     var onlyToPlan = document.getElementById("planifierToggle").classList.contains("active");
+    refreshChantiersExtraFilters();
+    var fEq = document.getElementById("filterEquipe").value;
+    var fVe = document.getElementById("filterVendeur").value;
 
     var rows = sortedArray(state.chantiers, chantiersCompareFn()).filter(function(c){
       if(chantiersTab === "closed" ? !c.archive : !!c.archive) return false;
       if(dept !== "all" && c.dept !== dept) return false;
       if(type !== "all" && c.type !== type) return false;
       if(onlyToPlan && !c.planifier) return false;
-      if(q && (c.client.toLowerCase().indexOf(q) === -1 && c.commune.toLowerCase().indexOf(q) === -1)) return false;
+      if(fEq && chantierTeamCells(c.id).filter(function(x){ return x.team === fEq; }).length === 0) return false;
+      if(fVe && (c.vendeur || "") !== fVe) return false;
+      if(q){
+        var hay = [c.client, c.commune, c.telephone, c.email, c.adresse, c.vendeur, c.chauffagiste, c.suivi, c.responsable].join(" ").toLowerCase();
+        if(hay.indexOf(q) === -1) return false;
+      }
       return true;
     });
     lastChantiersRows = rows;
@@ -1924,7 +2030,7 @@
 
     chantiersTbody.innerHTML = rows.map(function(c){
       var solde = (c.montant || 0) - paiementsTotal(c);
-      return "<tr>"
+      return '<tr class="t-' + ({"Forage eau":"eau","Pompage":"pompe","Dépannage":"dep","Autre":"autre"}[c.type] || "geo") + '">'
         + '<td class="client"><button type="button" class="client-link" data-fiche-id="' + c.id + '">' + c.client + "</button></td>"
         + '<td class="commune">' + c.commune + ' <span class="dept">(' + c.dept + ")</span></td>"
         + '<td><input type="text" class="cell-input field-input" placeholder="Nom du commercial" data-col="chantiers" data-id="' + c.id + '" data-field="vendeur" value="' + String(c.vendeur || "").replace(/"/g, "&quot;") + '"></td>'
@@ -1950,12 +2056,128 @@
         + "</tr>";
     }).join("");
 
+    decorateChantiersTable();
     document.getElementById("tableEmpty").hidden = rows.length !== 0;
     updateChantiersFooter();
     renderBacklog();
     renderBacklogForages();
     renderStock();
   }
+
+  /* ================= SIMULATION : lisibilité du tableau Chantiers ================= */
+  function weekLabelFromCellId(cellId){
+    var m = /^s(\d+)/.exec(String(cellId));
+    return m ? "S" + m[1] : "";
+  }
+  function chantierTeamCells(id){
+    var out = [];
+    Object.keys(state.planning).forEach(function(k){
+      var cell = state.planning[k];
+      if(cell && cell.chantierId === id){
+        var team = planningCellTeamKey(k);
+        if(teamMeta[team]){ out.push({team:team, week:weekLabelFromCellId(k), num:parseInt(weekLabelFromCellId(k).slice(1), 10) || 0, cellId:k}); }
+      }
+    });
+    out.sort(function(a, b){ return a.num - b.num; });
+    return out;
+  }
+  function refreshChantiersExtraFilters(){
+    var eq = document.getElementById("filterEquipe"), ve = document.getElementById("filterVendeur");
+    if(!eq || !ve) return;
+    if(eq.options.length <= 1){
+      TEAM_ORDER.forEach(function(t){ var o = document.createElement("option"); o.value = t; o.textContent = teamMeta[t].label; eq.appendChild(o); });
+    }
+    var seen = {};
+    Object.keys(state.chantiers).forEach(function(k){ var v = (state.chantiers[k].vendeur || "").trim(); if(v) seen[v] = true; });
+    var list = Object.keys(seen).sort(function(a, b){ return a.localeCompare(b, "fr"); });
+    var cur = ve.value;
+    if(ve.options.length - 1 !== list.length){
+      ve.innerHTML = '<option value="">Tous les vendeurs</option>' + list.map(function(v){ return '<option value="' + v + '">' + v + '</option>'; }).join("");
+      ve.value = cur;
+    }
+  }
+  function demarchesHtml(c){
+    var items = [["declarationValidee","Télé-GMI"],["ppsps","PPSPS"],["dict","DICT"]];
+    return '<div class="demarches">' + items.map(function(it){
+      var on = !!c[it[0]];
+      return '<button type="button" class="demarche ' + (on ? "yes" : "no") + '" data-col="chantiers" data-id="' + c.id + '" data-toggle-field="' + it[0] + '" title="' + it[1] + (on ? " : fait" : " : à faire") + '">' + (on ? "✓ " : "") + it[1] + '</button>';
+    }).join("") + '</div>';
+  }
+  var CHT_GROUPS = {1:"id",2:"id",3:"id",4:"id",5:"adm",6:"adm",7:"adm",8:"tech",9:"tech",10:"tech",11:"tech",12:"tech",13:"tech",14:"adm",15:"adm",16:"adm",17:"adm",18:"fin",19:"fin",20:"fin",21:"end",22:"end",23:"end"};
+  var CHT_MORE = [4,5,6,7,9,10,13,15,16];
+  var CHT_COMPACT_ONLY = 14;
+  var chantiersCompact = true;
+  function decorateChantiersTable(){
+    var table = document.getElementById("chantiersTable");
+    if(!table) return;
+    var headRow = table.querySelector("thead tr");
+    if(!document.getElementById("thDemarches")){
+      var thD = document.createElement("th"); thD.id = "thDemarches"; thD.textContent = "Démarches";
+      headRow.insertBefore(thD, headRow.children[13]);
+    }
+    function tag(cells){
+      for(var i = 0; i < cells.length; i++){
+        var n = i + 1;
+        cells[i].classList.add("cg-" + CHT_GROUPS[n]);
+        if(CHT_MORE.indexOf(n) !== -1) cells[i].classList.add("col-more");
+        if(n === CHT_COMPACT_ONLY) cells[i].classList.add("col-compact-only");
+      }
+    }
+    tag(headRow.children);
+    var chById = {};
+    table.querySelectorAll("tbody tr").forEach(function(tr){
+      var btn = tr.querySelector("[data-fiche-id]");
+      var id = btn ? btn.getAttribute("data-fiche-id") : null;
+      var ch = id ? state.chantiers[id] : null;
+      if(ch && tr.children.length === 22){
+        var tdD = document.createElement("td"); tdD.innerHTML = demarchesHtml(ch);
+        tr.insertBefore(tdD, tr.children[13]);
+      }
+      tag(tr.children);
+    });
+    var foot = table.querySelector("tfoot td");
+    if(foot) foot.setAttribute("colspan", "17");
+    table.classList.toggle("compact", chantiersCompact);
+    var tb = document.getElementById("colsToggleBtn");
+    if(tb) tb.textContent = chantiersCompact ? "Plus de colonnes (+" + CHT_MORE.length + ")" : "Moins de colonnes";
+  }
+  (function(){
+    var pdfBtn = document.getElementById("chantiersPdfBtn");
+    if(pdfBtn){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn-secondary"; b.id = "colsToggleBtn"; b.style.marginLeft = "auto";
+      pdfBtn.parentNode.insertBefore(b, pdfBtn);
+      b.addEventListener("click", function(){ chantiersCompact = !chantiersCompact; decorateChantiersTable(); });
+    }
+    ["filterEquipe", "filterVendeur"].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.addEventListener("change", function(){ renderChantiers(); });
+    });
+  })();
+
+
+  /* ================= SIMULATION : rappel de sauvegarde ================= */
+  var BACKUP_KEY = "hydreauLastBackup";
+  function getLastBackup(){ try{ var v = localStorage.getItem(BACKUP_KEY); return v ? Number(v) : null; }catch(e){ return null; } }
+  function setLastBackup(t){ try{ localStorage.setItem(BACKUP_KEY, String(t)); }catch(e){} }
+  function refreshBackupBanner(){
+    var el = document.getElementById("backupBanner"), tx = document.getElementById("backupText");
+    if(!el) return;
+    var last = getLastBackup();
+    var days = last ? Math.floor((Date.now() - last) / 86400000) : null;
+    if(last === null || days >= 7){
+      tx.textContent = last === null ? "Aucune sauvegarde Excel enregistrée sur ce poste." : "Dernière sauvegarde Excel il y a " + days + " jours.";
+      el.hidden = false;
+    } else { el.hidden = true; }
+  }
+  (function(){
+    var b = document.getElementById("backupNowBtn");
+    if(b) b.addEventListener("click", function(){ exportAllToExcel(); setLastBackup(Date.now()); refreshBackupBanner(); });
+    var ex = document.getElementById("exportExcelBtn");
+    if(ex) ex.addEventListener("click", function(){ setLastBackup(Date.now()); refreshBackupBanner(); });
+    refreshBackupBanner();
+  })();
+
   function updateChantiersFooter(){
     var all = sortedArray(state.chantiers, byOrder).filter(function(c){
       return chantiersTab === "closed" ? !!c.archive : !c.archive;
@@ -3924,9 +4146,9 @@
 
   /* ================= DASHBOARD (calculé à partir des données réelles) ================= */
   var DEPT_LABELS = {"22":"Côtes-d'Armor", "29":"Finistère", "35":"Ille-et-Vilaine", "56":"Morbihan", "44":"Loire-Atlantique"};
-  var DEPT_COLORS = ["var(--seq-blue-1)", "var(--seq-blue-2)", "var(--seq-blue-3)", "var(--seq-blue-4)", "var(--ink-muted)"];
+  var DEPT_COLORS = ["var(--logo-navy)", "var(--brand-teal)", "var(--brand-blue)", "var(--logo-sky)", "var(--ink-muted)"];
   var ACTIVITY_TYPES = ["Géothermie", "Forage eau", "Pompage", "Dépannage", "Autre"];
-  var ACTIVITY_COLORS = ["var(--seq-orange-1)", "var(--seq-orange-2)", "var(--seq-orange-3)", "var(--seq-orange-4)", "var(--ink-muted)"];
+  var ACTIVITY_COLORS = ["var(--brand-teal)", "var(--brand-blue)", "var(--logo-navy)", "var(--logo-sky)", "var(--ink-muted)"];
   function setText(id, txt){ var el = document.getElementById(id); if(el) el.textContent = txt; }
   function renderDashboard(){
     if(!document.getElementById("dashCaTotal")) return;
@@ -4043,6 +4265,18 @@
           items.push({crit:true, title:c.client, txt:c.reste || "Problème signalé sur le forage", where:c.commune + " (" + c.dept + ")"});
         } else if(c.raccStatut === "probleme"){
           items.push({crit:true, title:c.client, txt:c.reste || "Problème signalé sur le raccordement", where:c.commune + " (" + c.dept + ")"});
+        }
+        var inTeamPlan = chantierAssignedToTeamType(c.id, isForageTeamKey) || chantierAssignedToTeamType(c.id, isRaccTeamKey);
+        if(inTeamPlan && !c.mandat){ items.push({crit:true, title:c.client, txt:"Planifié mais mandat non signé", where:c.commune + " (" + c.dept + ")"}); }
+        if(inTeamPlan && !c.dict){ items.push({crit:true, title:c.client, txt:"Planifié mais DICT manquante", where:c.commune + " (" + c.dept + ")"}); }
+        if(c.forageStatut === "ok" && !c.raccNA && (c.raccStatut === null || c.raccStatut === undefined || c.raccStatut === "attente") && !chantierAssignedToTeamType(c.id, isRaccTeamKey)){
+          items.push({crit:false, title:c.client, txt:"Forage terminé — raccordement pas encore planifié", where:c.commune + " (" + c.dept + ")"});
+        }
+        if((c.factStatut === "facture" || c.factStatut === "partiel") && (c.montant || 0) - paiementsTotal(c) > 0){
+          var lastP = (c.paiements || []).length ? c.paiements[c.paiements.length - 1].date : "";
+          var mm = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(lastP);
+          var days = mm ? Math.floor((Date.now() - new Date(+mm[3], +mm[2] - 1, +mm[1]).getTime()) / 86400000) : null;
+          if(days !== null && days > 30){ items.push({crit:false, title:c.client, txt:"Facture en attente depuis " + days + " jours — solde " + eur((c.montant || 0) - paiementsTotal(c)), where:c.commune + " (" + c.dept + ")"}); }
         }
         if(c.factStatut === "impaye"){
           var soldeC = (c.montant || 0) - paiementsTotal(c);
