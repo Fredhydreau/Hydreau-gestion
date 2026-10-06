@@ -223,8 +223,8 @@ td.pan.doubt{background:var(--warn-bg)}
   Tant que FIREBASE_CONFIG n'est pas rempli, l'appli fonctionne mais
   sans partage entre postes (données gardées sur cette page uniquement).
 -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script>
 var FIREBASE_CONFIG = {
   apiKey: "AIzaSyAGxiK2UO1FSe_bwDNUPFwrkAPfM4-y5XQ",
@@ -836,7 +836,7 @@ async function boot(){
       db=firebase.firestore();
     }
   }catch(e){ db=null; initErr=(e&&e.message)||String(e); }
-  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 3)":(initErr?"Connexion à la base impossible ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
+  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 4)":(initErr?"Connexion à la base impossible ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
   refreshWarn();
   if(db){
     flushPending(); setInterval(flushPending,15000);
