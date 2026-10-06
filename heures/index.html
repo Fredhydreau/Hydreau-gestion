@@ -226,12 +226,12 @@ td.pan.doubt{background:var(--warn-bg)}
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore-compat.js"></script>
 <script>
 var FIREBASE_CONFIG = {
-  apiKey: "VOTRE_API_KEY",
-  authDomain: "VOTRE_PROJET.firebaseapp.com",
-  projectId: "VOTRE_PROJET",
-  storageBucket: "VOTRE_PROJET.appspot.com",
-  messagingSenderId: "VOTRE_SENDER_ID",
-  appId: "VOTRE_APP_ID"
+  apiKey: "AIzaSyAGxiK2UO1FSe_bwDNUPFwrkAPfM4-y5XQ",
+  authDomain: "gestion-hydreau.firebaseapp.com",
+  projectId: "gestion-hydreau",
+  storageBucket: "gestion-hydreau.firebasestorage.app",
+  messagingSenderId: "432954249621",
+  appId: "1:432954249621:web:16aa7c89478c38286de69c"
 };
 </script>
 
@@ -445,8 +445,8 @@ async function save(btn){
   try{
     if(db){
       try{
-        if(d.editId&&d.editId!==id) await withTimeout(db.doc("releves/"+d.editId).delete(),8000);
-        await withTimeout(db.doc("releves/"+id).set(doc),8000);
+        if(d.editId&&d.editId!==id) await withTimeout(db.doc("hf_releves/"+d.editId).delete(),8000);
+        await withTimeout(db.doc("hf_releves/"+id).set(doc),8000);
         shared=true;
       }catch(dbErr){
         if(dbErr&&dbErr.code==="quota_exceeded"){hardFail=true;throw dbErr;}
@@ -531,7 +531,7 @@ $("#list").addEventListener("click",function(e){
     if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Confirmer ?";setTimeout(function(){if(b.isConnected){b.dataset.armed="";b.textContent="Supprimer"}},4000);return;}
     b.disabled=true;
     var delId=b.dataset.del;
-    (db?withTimeout(db.doc("releves/"+delId).delete(),8000):Promise.reject()).catch(function(){}).then(function(){
+    (db?withTimeout(db.doc("hf_releves/"+delId).delete(),8000):Promise.reject()).catch(function(){}).then(function(){
       releves=releves.filter(function(x){return x.id!==delId}); afterData();
     });
   }
@@ -625,7 +625,7 @@ $("#recupBox").addEventListener("click",function(e){
     if(!nom||!date||isNaN(dur)||dur<=0){note.hidden=false;note.className="note bad";note.textContent="Renseignez le salarié, la date et une durée valide (ex : 7h30).";return;}
     t.disabled=true;
     var doc={salarie:nom,date:date,minutes:dur,note:"",createdAt:new Date().toISOString()};
-    (db?withTimeout(db.collection("recup").add(doc),8000):Promise.reject()).then(function(ref){doc.id=ref.id;},function(){doc.id="local-"+Date.now()+"-"+Math.random().toString(36).slice(2);}).then(function(){
+    (db?withTimeout(db.collection("hf_recup").add(doc),8000):Promise.reject()).then(function(ref){doc.id=ref.id;},function(){doc.id="local-"+Date.now()+"-"+Math.random().toString(36).slice(2);}).then(function(){
       recups=recups.filter(function(r){return r.id!==doc.id}); recups.push(doc); afterData();
       $("#rc-nom").value=""; $("#rc-duree").value=""; t.disabled=false;
       note.hidden=false; note.className="note ok"; note.textContent="Récupération de "+nom+" enregistrée ✓";
@@ -633,7 +633,7 @@ $("#recupBox").addEventListener("click",function(e){
   }
   if(t.dataset.recupDel){
     var id=t.dataset.recupDel; t.disabled=true;
-    (db&&!/^local-/.test(id)?withTimeout(db.doc("recup/"+id).delete(),8000):Promise.reject()).catch(function(){}).then(function(){
+    (db&&!/^local-/.test(id)?withTimeout(db.doc("hf_recup/"+id).delete(),8000):Promise.reject()).catch(function(){}).then(function(){
       recups=recups.filter(function(r){return r.id!==id}); afterData();
     });
   }
@@ -744,7 +744,7 @@ $("#zrates").addEventListener("change",function(e){
 });
 function setConfig(p){
   config=Object.assign({},config,p);
-  if(db) db.doc("config/main").set(config).catch(function(){});
+  if(db) db.doc("hf_config/main").set(config).catch(function(){});
   syncConfigUI(); renderSalCumul(); renderRecup(); renderChantCumul(); renderSynth(); renderList(); if(current) updateReview();
 }
 $("#btn-csv").addEventListener("click",async function(){
@@ -818,15 +818,15 @@ async function boot(){
   }catch(e){ db=null; }
   $("#dbstate").textContent=db?"Relevés enregistrés et partagés":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)";
   if(db){
-    db.collection("releves").onSnapshot(function(snap){
+    db.collection("hf_releves").onSnapshot(function(snap){
       releves=snap.docs.map(function(d){var x=d.data();x.id=d.id;return x});
       afterData();
     },function(){$("#dbstate").textContent="Lecture des relevés impossible"});
-    db.collection("recup").onSnapshot(function(snap){
+    db.collection("hf_recup").onSnapshot(function(snap){
       recups=snap.docs.map(function(d){var x=d.data();x.id=d.id;return x});
       afterData();
     },function(){});
-    db.doc("config/main").onSnapshot(function(s){
+    db.doc("hf_config/main").onSnapshot(function(s){
       if(s.exists){
         config=Object.assign({seuil:35,zones:ZONE_DEFAULT.slice(),panier:PANIER_DEFAULT,report:{},password:"Hydreau"},s.data());
         var migrated=false;
@@ -835,7 +835,7 @@ async function boot(){
           config.zones[6]=40; migrated=true;
         }
         if(config.password==="hydreau"){ config.password="Hydreau"; migrated=true; }
-        if(migrated) db.doc("config/main").set(config).catch(function(){});
+        if(migrated) db.doc("hf_config/main").set(config).catch(function(){});
         syncConfigUI();afterData();
       }
     },function(){});
