@@ -3266,15 +3266,35 @@
     var html = PLAN_SPECIAL_OPTIONS.map(function(o){
       return '<option value="' + o.v + '"' + (o.v === selected ? " selected" : "") + '>' + o.label + '</option>';
     }).join("");
-    var chantiers = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); }).filter(function(c){
-      // Seuls les chantiers cochés « À planifier » ET correspondant à la phase de la ligne sont
-      // proposés — sauf le chantier déjà affecté à cette case, pour ne jamais faire disparaître
-      // une affectation existante.
-      return (!!c.planifier && !c.archive && chantierMatchesRow(c, rowKey)) || c.id === selected;
-    });
-    html += chantiers.map(function(c){
+    var sameType = isForageTeamKey(rowKey) ? isForageTeamKey : (isRaccTeamKey(rowKey) ? isRaccTeamKey : null);
+    var assignedSet = {};
+    if(sameType){
+      for(var pk in state.planning){
+        var pc = state.planning[pk];
+        if(pc && pc.chantierId && sameType(planningCellTeamKey(pk))) assignedSet[pc.chantierId] = true;
+      }
+    }
+    var all = sortedArray(state.chantiers, function(a, b){ return a.client.localeCompare(b.client, "fr"); });
+    function opt(c){
       return '<option value="' + c.id + '"' + (c.id === selected ? " selected" : "") + '>' + c.client + " · " + c.commune + '</option>';
-    }).join("");
+    }
+    // 1) à planifier (pas encore au planning pour cette phase) ; 2) déjà au planning pour cette phase :
+    // un client peut occuper plusieurs jours, donc il reste proposé pour les jours suivants.
+    var toPlan = [], already = [];
+    all.forEach(function(c){
+      if(c.archive && c.id !== selected) return;
+      var matches = chantierMatchesRow(c, rowKey);
+      if(c.id === selected){ ((c.planifier && matches) ? toPlan : already).push(c); return; }
+      if(!matches) return;
+      if(c.planifier) toPlan.push(c);
+      else if(sameType && assignedSet[c.id]) already.push(c);
+    });
+    if(toPlan.length && already.length){
+      html += '<optgroup label="À planifier">' + toPlan.map(opt).join("") + '</optgroup>';
+      html += '<optgroup label="Déjà au planning (autres jours)">' + already.map(opt).join("") + '</optgroup>';
+    } else {
+      html += toPlan.concat(already).map(opt).join("");
+    }
     return html;
   }
   function planClientCellHtml(id, selected, colorVar){
