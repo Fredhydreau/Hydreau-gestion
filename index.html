@@ -766,6 +766,45 @@
     .fiche-cols, .fiche-bottom{display:block;}
     #ficheOverlay .fiche-col-main .fiche-grid{grid-template-columns:1fr 1fr;}
   }
+
+  /* ===== FICHE CLIENT : textes plus gros ===== */
+  #ficheOverlay .modal-panel{max-width:min(1560px, 98vw); max-height:96vh;}
+  #ficheOverlay .modal-head h3{font-size:24px; line-height:1.15;}
+  #ficheOverlay .modal-head .sub{font-size:15px; margin-top:3px;}
+  #ficheOverlay .modal-close{width:34px; height:34px;}
+  #ficheOverlay .fiche-section h4{font-size:14px; letter-spacing:.5px; margin-bottom:8px; color:var(--brand-teal-ink);}
+  #ficheOverlay .fiche-grid{font-size:15px;}
+  #ficheOverlay .fiche-grid .k{font-size:14px;}
+  #ficheOverlay .fiche-grid .v{font-size:15px; font-weight:700;}
+  #ficheOverlay .form-row label{font-size:13.5px;}
+  #ficheOverlay input, #ficheOverlay select, #ficheOverlay textarea{font-size:15px;}
+  #ficheOverlay .field-input{font-size:15px; padding:7px 10px;}
+  #ficheOverlay .fiche-step{padding:9px 4px;}
+  #ficheOverlay .fiche-step .lbl{font-size:11.5px;}
+  #ficheOverlay .fiche-step .val{font-size:14px;}
+  #ficheOverlay .debours-row{font-size:15px; padding:7px 0;}
+  #ficheOverlay .debours-row .ddate{font-size:12px;}
+  #ficheOverlay .debours-total{font-size:15px; font-weight:800;}
+  #ficheOverlay .debours-add .btn-secondary, #ficheOverlay .journal-add .btn-secondary{font-size:14px;}
+  #ficheSondesSection .hint{font-size:12.5px;}
+  #ficheOverlay .journal-item .jdate{font-size:12px;}
+  #ficheOverlay .journal-item .jtext{font-size:15px;}
+  #ficheOverlay .fiche-actions .btn-primary{font-size:15px; padding:11px 14px;}
+  #ficheOverlay .status-select, #ficheOverlay select.cell-select{font-size:14.5px;}
+  #ficheOverlay .bool-pill{font-size:13px;}
+  #ficheOverlay .debours-list{max-height:150px;}
+  #ficheOverlay .journal-list{max-height:170px;}
+  .fiche-cols{grid-template-columns:minmax(0,.95fr) minmax(0,1.9fr) minmax(0,.95fr);}
+  #ficheOverlay .fiche-col-main .fiche-grid{grid-template-columns:auto minmax(0,1fr) auto minmax(0,1fr); gap:7px 12px;}
+  #ficheOverlay .fiche-grid .v{min-width:0;}
+  #ficheOverlay .fiche-grid .v input, #ficheOverlay .fiche-grid .v select{width:100%; min-width:0; box-sizing:border-box;}
+  #ficheOverlay .fiche-grid .k{line-height:1.2;}
+  #ficheOverlay .journal-list{max-height:84px;}
+  #ficheOverlay .debours-add{flex-wrap:nowrap;}
+  #ficheOverlay .debours-add input{min-width:0 !important; width:100%;}
+  #ficheOverlay .debours-add .btn-secondary{flex:none; white-space:nowrap; padding:7px 12px;}
+  #ficheOverlay .fiche-section{margin-bottom:10px;}
+  @media (max-width:1180px){ .fiche-cols{grid-template-columns:none;} }
 </style>
 </head>
 <body>
