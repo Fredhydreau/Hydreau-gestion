@@ -152,6 +152,7 @@ td.pan.doubt{background:var(--warn-bg)}
     <button class="btn small" id="btn-logout" type="button">Déconnexion</button>
   </div>
 </header>
+<div class="note bad" id="saveWarn" hidden style="font-weight:700;font-size:15px;margin:10px 0"></div>
 
 <nav role="tablist" aria-label="Sections">
   <button role="tab" id="tab-scan" data-tab="scan" aria-selected="true">Scanner une feuille</button>
@@ -429,6 +430,22 @@ $("#review").addEventListener("click",function(e){
   if(t.id==="btn-skip"){nextDraft();}
   if(t.id==="btn-save"&&!t.disabled) save(t);
 });
+var PEND_KEY="hf_pending_releves";
+function pendLoad(){try{return JSON.parse(localStorage.getItem(PEND_KEY)||"{}")||{}}catch(_){return {}}}
+function pendSave(o){try{localStorage.setItem(PEND_KEY,JSON.stringify(o))}catch(_){}}
+function pendCount(){return Object.keys(pendLoad()).length}
+function refreshWarn(){
+  var n=pendCount(), w=$("#saveWarn"); if(!w) return;
+  if(n>0){ w.hidden=false; w.textContent="⚠ ATTENTION : "+n+" relevé(s) NON enregistré(s) dans la base partagée (accès refusé ou connexion coupée). Ils sont gardés sur cet appareil et renvoyés automatiquement dès que possible — ne videz pas le navigateur et prévenez Fred."; }
+  else { w.hidden=true; }
+}
+async function flushPending(){
+  if(!db) return; var p=pendLoad(), ids=Object.keys(p); if(!ids.length) return;
+  for(var i=0;i<ids.length;i++){
+    try{ await withTimeout(db.doc("hf_releves/"+ids[i]).set(p[ids[i]]),8000); var q=pendLoad(); delete q[ids[i]]; pendSave(q); }catch(e){}
+  }
+  refreshWarn();
+}
 function withTimeout(p,ms){
   return new Promise(function(res,rej){
     var done=false;
@@ -454,6 +471,8 @@ async function save(btn){
       }
     }
     // mise à jour immédiate de l'affichage, qu'elle vienne du serveur ou du stockage local
+    if(!shared){ var pq=pendLoad(); pq[id]=doc; pendSave(pq); refreshWarn(); }
+    else { var pq2=pendLoad(); if(pq2[id]){ delete pq2[id]; pendSave(pq2); refreshWarn(); } }
     releves=releves.filter(function(r){return r.id!==id&&r.id!==d.editId});
     releves.push(Object.assign({id:id},doc));
     afterData();
@@ -461,7 +480,7 @@ async function save(btn){
     if(d.imgUrl) try{URL.revokeObjectURL(d.imgUrl)}catch(_){}
     var nom=d.prenom.trim();
     nextDraft();
-    var suffix=shared?"":" (enregistré sur cet appareil uniquement, base partagée indisponible)";
+    var suffix=shared?"":" (⚠ NON enregistré dans la base partagée !)";
     if(!current){
       showToast("Relevé de "+nom+" enregistré ✓"+suffix);
       showTab("list"); window.scrollTo({top:0});
@@ -808,6 +827,7 @@ async function boot(){
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
   }};
+  var initErr="";
   try{
     if(!FIREBASE_CONFIG||!FIREBASE_CONFIG.apiKey||FIREBASE_CONFIG.apiKey.indexOf("VOTRE_")===0){
       db=null;
@@ -815,13 +835,16 @@ async function boot(){
       if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       db=firebase.firestore();
     }
-  }catch(e){ db=null; }
-  $("#dbstate").textContent=db?"Relevés enregistrés et partagés":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)";
+  }catch(e){ db=null; initErr=(e&&e.message)||String(e); }
+  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 3)":(initErr?"Connexion à la base impossible ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
+  refreshWarn();
   if(db){
+    flushPending(); setInterval(flushPending,15000);
     db.collection("hf_releves").onSnapshot(function(snap){
       releves=snap.docs.map(function(d){var x=d.data();x.id=d.id;return x});
+      var pp=pendLoad(); Object.keys(pp).forEach(function(k){ if(!releves.some(function(r){return r.id===k})) releves.push(Object.assign({id:k},pp[k])); });
       afterData();
-    },function(){$("#dbstate").textContent="Lecture des relevés impossible"});
+    },function(){$("#dbstate").textContent="Lecture des relevés impossible (accès refusé par la base)"; var w=$("#saveWarn"); w.hidden=false; w.textContent="⚠ La base partagée refuse l'accès : les relevés ne peuvent ni être lus ni enregistrés. Prévenez Fred."});
     db.collection("hf_recup").onSnapshot(function(snap){
       recups=snap.docs.map(function(d){var x=d.data();x.id=d.id;return x});
       afterData();
