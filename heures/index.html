@@ -187,7 +187,8 @@ td.pan.doubt{background:var(--warn-bg)}
   <div class="ctl">
     <div class="field"><label for="s-month">Mois</label><input type="month" id="s-month"></div>
     <div class="field"><label for="s-seuil">Seuil hebdomadaire (h)</label><input type="number" id="s-seuil" min="1" max="60" step="0.01"></div>
-    <button class="btn primary" id="btn-recap" type="button">Récap du mois (Excel) : par salarié et par chantier</button>
+    <button class="btn primary" id="btn-recap" type="button">Récap du mois : Excel</button>
+    <button class="btn primary" id="btn-recap-pdf" type="button">Récap du mois : PDF</button>
     <button class="btn" id="btn-csv" type="button">Exporter en CSV</button>
   </div>
   <div class="card" style="margin-bottom:20px">
@@ -900,14 +901,88 @@ $("#restore-box").addEventListener("click",async function(ev){
 });
 
 
+
+/* ---------- générateur PDF minimal (sans bibliothèque externe) ---------- */
+var HW=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+function pdfW(s,size,bold){var w=0; s=String(s); for(var i=0;i<s.length;i++){var c=s.charCodeAt(i); var u=c>=32&&c<=126?HW[c-32]:(c>=192&&c<=255?556:(c===8364?556:556)); w+=u;} return w*size/1000*(bold?1.06:1);}
+function pdfEnc(s){
+  s=String(s==null?"":s); var o="";
+  for(var i=0;i<s.length;i++){var c=s.charCodeAt(i), b;
+    if(c<256) b=c; else if(c===8364) b=128; else if(c===8217||c===8216) b=39; else if(c===8230) b=133; else if(c===8212) b=151; else if(c===8211) b=150; else if(c===160||c===8239) b=32; else b=63;
+    if(b===40||b===41||b===92) o+="\\"; o+=String.fromCharCode(b);}
+  return o;
+}
+function pdfFit(s,maxw,size,bold){s=String(s); if(pdfW(s,size,bold)<=maxw) return s; while(s.length>1&&pdfW(s+"…",size,bold)>maxw) s=s.slice(0,-1); return s+"…";}
+function pdfNum(x){ if(typeof x!=="number") return x==null?"":String(x); var r=Math.round(x*100)/100; return (Number.isInteger(r)?String(r):r.toFixed(2)).replace(".",","); }
+function buildPdf(title,subtitle,sections,footer){
+  var PW=842, PH=595, M=36, AW=PW-2*M, pages=[], ops, y;
+  function newPage(){ops=[]; pages.push(ops); y=PH-M;}
+  function txt(s,x,yy,size,bold,col){ ops.push((col||"0.06 0.13 0.2")+" rg BT /"+(bold?"F2":"F1")+" "+size+" Tf "+x.toFixed(2)+" "+yy.toFixed(2)+" Td ("+pdfEnc(s)+") Tj ET"); }
+  function rect(x,yy,w,h,col){ ops.push(col+" rg "+x.toFixed(2)+" "+yy.toFixed(2)+" "+w.toFixed(2)+" "+h.toFixed(2)+" re f"); }
+  newPage();
+  txt("HYDREAU FORAGE",M,y-14,17,true,"0.04 0.5 0.72"); txt(title,M,y-34,12,true); txt(subtitle,M,y-48,9,false,"0.35 0.42 0.48"); y-=66;
+  sections.forEach(function(sec,si){
+    var size=8.5, rowH=14, headH=24;
+    var ncol=sec.head.length, wid=[], hl=[];
+    sec.head.forEach(function(h,i){
+      h=String(h); var words=h.split(" "), best=h, bw=pdfW(h,size,true), l1=h, l2="";
+      if(words.length>1){ var bestMax=1e9; for(var k=1;k<words.length;k++){var a=words.slice(0,k).join(" "), b=words.slice(k).join(" "), m=Math.max(pdfW(a,size,true),pdfW(b,size,true)); if(m<bestMax){bestMax=m;l1=a;l2=b;}} bw=bestMax; }
+      hl[i]=[l1,l2]; wid[i]=bw+8;
+    });
+    sec.rows.forEach(function(r){ r.forEach(function(c,i){ var w=pdfW(typeof c==="number"?pdfNum(c):c,size,/^(TOTAL|Dépôt)/.test(String(r[0])))+8; if(w>wid[i]) wid[i]=Math.min(w,230); }); });
+    var tot=wid.reduce(function(a,b){return a+b},0), sc=tot>AW?AW/tot:1; wid=wid.map(function(w){return w*sc});
+    function header(){
+      if(y-headH<M+20){ newPage(); }
+      rect(M,y-headH,wid.reduce(function(p,q){return p+q},0),headH,"0.9 0.94 0.97");
+      var x=M; for(var i=0;i<ncol;i++){ var num=sec.rows.length&&typeof sec.rows[0][i]==="number"; 
+        [hl[i][0],hl[i][1]].forEach(function(t,li){ if(!t) return; var tw=pdfW(t,size,true), tx=num?x+wid[i]-4-tw:x+4; txt(pdfFit(t,wid[i]-6,size,true),tx,y-9-li*10,size,true); });
+        x+=wid[i]; }
+      y-=headH;
+    }
+    if(si>0&&sec.newPage){ newPage(); }
+    if(y-headH-rowH*2<M+20) newPage();
+    txt(sec.h,M,y-11,11,true); y-=20; header();
+    var usedW=wid.reduce(function(a,b){return a+b},0);
+    sec.rows.forEach(function(r,ri){
+      if(y-rowH<M+16){ newPage(); header(); }
+      var isTot=/^(TOTAL|Dépôt)/.test(String(r[0]));
+      if(isTot) rect(M,y-rowH,usedW,rowH,"0.93 0.93 0.93"); else if(ri%2===1) rect(M,y-rowH,usedW,rowH,"0.975 0.98 0.985");
+      var x=M; for(var i=0;i<ncol;i++){ var c=r[i], num=typeof c==="number", s=num?pdfNum(c):(c==null?"":String(c));
+        s=pdfFit(s,wid[i]-6,size,isTot); var tx=num?x+wid[i]-4-pdfW(s,size,isTot):x+4; txt(s,tx,y-10,size,isTot); x+=wid[i]; }
+      y-=rowH;
+    });
+    y-=16;
+  });
+  var N=pages.length;
+  pages.forEach(function(pg,i){ pg.push("0.5 0.55 0.6 rg BT /F1 8 Tf "+M+" 20 Td ("+pdfEnc(footer)+") Tj ET"); var t="Page "+(i+1)+" / "+N; pg.push("0.5 0.55 0.6 rg BT /F1 8 Tf "+(PW-M-pdfW(t,8,false)).toFixed(2)+" 20 Td ("+pdfEnc(t)+") Tj ET"); });
+  var objs=[], off=[], out="%PDF-1.4\n";
+  function addObj(s){objs.push(s);}
+  addObj("<< /Type /Catalog /Pages 2 0 R >>");
+  var kids=[]; for(var i=0;i<N;i++) kids.push((5+i*2)+" 0 R");
+  addObj("<< /Type /Pages /Kids ["+kids.join(" ")+"] /Count "+N+" >>");
+  addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  addObj("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  pages.forEach(function(pg,i){
+    var content=pg.join("\n");
+    addObj("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 "+PW+" "+PH+"] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents "+(6+i*2)+" 0 R >>");
+    addObj("<< /Length "+content.length+" >>\nstream\n"+content+"\nendstream");
+  });
+  objs.forEach(function(o,i){ off.push(out.length); out+=(i+1)+" 0 obj\n"+o+"\nendobj\n"; });
+  var xr=out.length; out+="xref\n0 "+(objs.length+1)+"\n0000000000 65535 f \n";
+  off.forEach(function(p){ out+=String(p).padStart(10,"0")+" 00000 n \n"; });
+  out+="trailer\n<< /Size "+(objs.length+1)+" /Root 1 0 R >>\nstartxref\n"+xr+"\n%%EOF";
+  var u8=new Uint8Array(out.length); for(var j=0;j<out.length;j++) u8[j]=out.charCodeAt(j)&255;
+  return u8;
+}
+
 /* ---------- récapitulatif mensuel (Excel) : par salarié et par chantier ---------- */
-async function exportMonthRecap(){
+async function exportMonthRecap(kind){
   var mo=$("#s-month").value, rows=monthRows(mo);
   if(!downloads) return false;
   if(!rows.length){ showToast("Aucun relevé pour ce mois."); return false; }
-  await loadXLSX();
-  var wb=XLSX.utils.book_new();
-  function add(name,aoa,widths){var ws=XLSX.utils.aoa_to_sheet(aoa); if(widths) ws["!cols"]=widths.map(function(w){return {wch:w}}); XLSX.utils.book_append_sheet(wb,ws,name);}
+  var pdf=(kind==="pdf"), wb=null, SH=[];
+  if(!pdf){ await loadXLSX(); wb=XLSX.utils.book_new(); }
+  function add(name,aoa,widths){ SH.push({name:name,aoa:aoa}); if(pdf) return; var ws=XLSX.utils.aoa_to_sheet(aoa); if(widths) ws["!cols"]=widths.map(function(w){return {wch:w}}); XLSX.utils.book_append_sheet(wb,ws,name);}
   var sal={}, chant={}, sc={}, depotMin=0, nochant=0;
   rows.forEach(function(r){
     var w=weekTotals(r), k=r.prenom.trim(); if(!k) return;
@@ -950,13 +1025,27 @@ async function exportMonthRecap(){
     a4.push([r.prenom,fmtDate(r.du),j.jour,j.chantier||"",j.zone||"",j.panier?"oui":"",nh(j.chantierH),nh(j.depot),nh((j.chantierH||0)+(j.depot||0)),j.remarques||""]);
   })});
   add("Détail jours",a4,[14,12,10,22,10,8,12,10,10,30]);
+  if(pdf){
+    var mname=new Date(mo+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    var secs=[{h:"Par salarié",head:SH[0].aoa[2],rows:SH[0].aoa.slice(3)},{h:"Par chantier",head:SH[1].aoa[2],rows:SH[1].aoa.slice(3)},{h:"Chaque salarié par chantier",head:SH[2].aoa[2],rows:SH[2].aoa.slice(3)},{h:"Détail des jours du mois",head:SH[3].aoa[0],rows:SH[3].aoa.slice(1),newPage:true}];
+    var d=new Date(), ds=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
+    var bytes=buildPdf("Récapitulatif d'heures — "+mname,"Semaines rattachées au mois de leur premier jour. Heures en décimales (ex : 7,5 = 7 h 30). Montants en euros.",secs,"Hydreau Forage — édité le "+ds);
+    await downloads.save({filename:"recap-"+mo+"-hydreau-forage.pdf",data:new Blob([bytes],{type:"application/pdf"})});
+    return true;
+  }
   var out=XLSX.write(wb,{bookType:"xlsx",type:"array"});
   await downloads.save({filename:"recap-"+mo+"-hydreau-forage.xlsx",data:new Blob([out],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})});
   return true;
 }
+$("#btn-recap-pdf").addEventListener("click",async function(e){
+  var b=e.currentTarget; b.disabled=true;
+  try{ if(await exportMonthRecap("pdf")) showToast("Récapitulatif PDF téléchargé ✓"); }
+  catch(err){ if(!(err&&err.code==="declined")) showToast("Export impossible : "+((err&&err.message)||(err&&err.code)||"erreur")); }
+  b.disabled=false;
+});
 $("#btn-recap").addEventListener("click",async function(e){
   var b=e.currentTarget; b.disabled=true;
-  try{ if(await exportMonthRecap()) showToast("Récapitulatif du mois téléchargé ✓"); }
+  try{ if(await exportMonthRecap("xlsx")) showToast("Récapitulatif du mois téléchargé ✓"); }
   catch(err){ if(!(err&&err.code==="declined")) showToast("Export impossible : "+((err&&err.message)||(err&&err.code)||"erreur")); }
   b.disabled=false;
 });
@@ -1012,7 +1101,7 @@ async function ensureFirebase(){
 async function boot(){
   if(!current) $("#btn-manual").click();
   downloads={save:async function(o){
-    var blob=new Blob([o.data],{type:/\.xlsx$/i.test(o.filename)?"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":"text/csv;charset=utf-8"});
+    var blob=new Blob([o.data],{type:/\.xlsx$/i.test(o.filename)?"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":(/\.pdf$/i.test(o.filename)?"application/pdf":"text/csv;charset=utf-8")});
     var a=document.createElement("a");
     a.href=URL.createObjectURL(blob); a.download=o.filename;
     document.body.appendChild(a); a.click(); a.remove();
@@ -1029,7 +1118,7 @@ async function boot(){
       try{ db.settings({experimentalForceLongPolling:true}); }catch(_){}
     }
   }catch(e){ db=null; initErr=(e&&e.message)||String(e); }
-  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 11)":(initErr?"Connexion à la base impossible [v11] ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
+  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 12)":(initErr?"Connexion à la base impossible [v12] ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
   refreshWarn();
   if(db){
     flushPending(); setInterval(flushPending,15000);
