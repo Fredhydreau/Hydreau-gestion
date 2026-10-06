@@ -223,8 +223,6 @@ td.pan.doubt{background:var(--warn-bg)}
   Tant que FIREBASE_CONFIG n'est pas rempli, l'appli fonctionne mais
   sans partage entre postes (données gardées sur cette page uniquement).
 -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script>
 var FIREBASE_CONFIG = {
   apiKey: "AIzaSyAGxiK2UO1FSe_bwDNUPFwrkAPfM4-y5XQ",
@@ -818,6 +816,15 @@ $("#btn-logout").addEventListener("click",function(){
   $("#s-month").value=mo; syncConfigUI(); renderList();
   $("#login-pw").focus();
 })();
+function loadScript(src){return new Promise(function(res,rej){var s=document.createElement("script");s.src=src;s.onload=res;s.onerror=function(){rej(new Error("chargement impossible : "+src))};document.head.appendChild(s)})}
+async function ensureFirebase(){
+  if(window.firebase&&firebase.firestore) return;
+  var bases=["https://www.gstatic.com/firebasejs/8.10.1/","https://cdn.jsdelivr.net/npm/firebase@8.10.1/"], last=null;
+  for(var i=0;i<bases.length;i++){
+    try{ if(!window.firebase) await loadScript(bases[i]+"firebase-app.js"); await loadScript(bases[i]+"firebase-firestore.js"); if(window.firebase&&firebase.firestore) return; }catch(e){ last=e; }
+  }
+  throw last||new Error("Firebase introuvable");
+}
 async function boot(){
   if(!current) $("#btn-manual").click();
   downloads={save:async function(o){
@@ -832,15 +839,20 @@ async function boot(){
     if(!FIREBASE_CONFIG||!FIREBASE_CONFIG.apiKey||FIREBASE_CONFIG.apiKey.indexOf("VOTRE_")===0){
       db=null;
     }else{
+      await ensureFirebase();
       if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
       db=firebase.firestore();
+      try{ db.settings({experimentalForceLongPolling:true}); }catch(_){}
     }
   }catch(e){ db=null; initErr=(e&&e.message)||String(e); }
-  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 4)":(initErr?"Connexion à la base impossible ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
+  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 6)":(initErr?"Connexion à la base impossible [v6] ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
   refreshWarn();
   if(db){
     flushPending(); setInterval(flushPending,15000);
+    var gotSnap=false;
+    setTimeout(function(){ if(!gotSnap){ var w=$("#saveWarn"); w.hidden=false; w.textContent="⚠ La base partagée ne répond pas (connexion bloquée par le réseau, un pare-feu ou une extension du navigateur ?). Les relevés saisis ne seront PAS partagés tant que ce message est affiché."; } },12000);
     db.collection("hf_releves").onSnapshot(function(snap){
+      gotSnap=true; refreshWarn();
       releves=snap.docs.map(function(d){var x=d.data();x.id=d.id;return x});
       var pp=pendLoad(); Object.keys(pp).forEach(function(k){ if(!releves.some(function(r){return r.id===k})) releves.push(Object.assign({id:k},pp[k])); });
       afterData();
