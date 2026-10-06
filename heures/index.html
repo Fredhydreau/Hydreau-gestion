@@ -152,6 +152,7 @@ td.pan.doubt{background:var(--warn-bg)}
     <button class="btn small" id="btn-logout" type="button">Déconnexion</button>
   </div>
 </header>
+<div class="note warn" id="backupBar" hidden style="margin:10px 0"><span id="backupMsg"></span> <button class="btn small" id="btn-backup" type="button" style="margin-left:10px">Télécharger la sauvegarde Excel</button></div>
 <div class="note bad" id="saveWarn" hidden style="font-weight:700;font-size:15px;margin:10px 0"></div>
 
 <nav role="tablist" aria-label="Sections">
@@ -185,13 +186,20 @@ td.pan.doubt{background:var(--warn-bg)}
 <section id="v-synth" hidden>
   <div class="ctl">
     <div class="field"><label for="s-month">Mois</label><input type="month" id="s-month"></div>
-    <div class="field"><label for="s-seuil">Seuil hebdomadaire (h)</label><input type="number" id="s-seuil" min="1" max="60" step="0.5"></div>
+    <div class="field"><label for="s-seuil">Seuil hebdomadaire (h)</label><input type="number" id="s-seuil" min="1" max="60" step="0.01"></div>
     <button class="btn" id="btn-csv" type="button">Exporter en CSV</button>
   </div>
   <div class="card" style="margin-bottom:20px">
     <h3 style="margin-top:0">Accès à l'application</h3>
     <p class="muted" style="margin-bottom:12px">Mot de passe demandé à chaque ouverture de la page (le même pour tous les salariés).</p>
     <div class="row"><div class="field" style="flex:0 1 220px"><label for="s-pw">Mot de passe</label><input type="text" id="s-pw"></div></div>
+  </div>
+  <div class="card" style="margin-bottom:20px">
+    <h3 style="margin-top:0">Sauvegarde et restauration</h3>
+    <p class="muted" style="margin-bottom:12px">Le fichier Excel contient tous les relevés, cumuls et récupérations (plusieurs feuilles lisibles). Il sert aussi à tout remettre en place en cas de problème. Un rappel s'affiche chaque semaine.</p>
+    <div class="row"><button class="btn primary" id="btn-xlsx" type="button">Exporter tout (Excel)</button><span class="muted" id="backup-last"></span></div>
+    <div class="field" style="margin-top:14px;max-width:420px"><label for="restore-file">Restaurer depuis une sauvegarde Excel</label><input type="file" id="restore-file" accept=".xlsx"></div>
+    <div id="restore-box" style="margin-top:10px"></div>
   </div>
   <div class="card" style="margin-bottom:20px">
     <h3 style="margin-top:0">Barème indemnités de zone et panier repas (€ par jour)</h3>
@@ -296,7 +304,7 @@ var db=null, downloads=null;
 var releves=[];            // documents enregistrés
 var recups=[];             // récupérations d'heures prises
 var PANIER_DEFAULT=17;
-var config={seuil:35,zones:ZONE_DEFAULT.slice(),panier:PANIER_DEFAULT,report:{},password:"Hydreau"};
+var config={seuil:39.62,zones:ZONE_DEFAULT.slice(),panier:PANIER_DEFAULT,report:{},password:"Hydreau"};
 var pending=[], current=null;
 var mem=false;             // enregistrement local si pas de base partagée
 
@@ -515,7 +523,7 @@ function weekTotals(r){
     if(n) indemCents+=zoneRateCents(n); else unmatched++;
   });
   var panierCents=panierCount*panierRateCents();
-  var recup=Math.round(h25*1.25+h50*1.5);
+  var recup=h25+h50;
   return {t:t,work:work,h25:h25,h50:h50,hs:over,recup:recup,indemCents:indemCents,unmatched:unmatched,zonesUsed:zonesUsed,panierCount:panierCount,panierCents:panierCents,totalCents:indemCents+panierCents};
 }
 
@@ -619,7 +627,7 @@ function renderRecup(){
   var hist=recups.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"")});
   var histHtml=hist.length?hist.map(function(r){return '<tr><td>'+esc(r.salarie)+'</td><td>'+fmtDate(r.date)+'</td><td class="num">'+fmt(r.minutes)+'</td><td class="muted">'+esc(r.note||"")+'</td><td><button class="btn small danger" data-recup-del="'+esc(r.id)+'" type="button">Supprimer</button></td></tr>'}).join(""):'<tr><td colspan="5" class="muted">Aucune récupération enregistrée pour l\'instant.</td></tr>';
   var h='<h3 style="margin-top:0">Récupération d\'heures</h3>'+
-    '<p class="muted" style="margin-bottom:12px">Les heures supplémentaires ne sont pas payées : elles alimentent un solde de repos à récupérer (1 h à 25 % = 1 h 15 de récup, 1 h à 50 % = 1 h 30). Cumul depuis le début, tous mois confondus.</p>'+
+    '<p class="muted" style="margin-bottom:12px">Les heures supplémentaires ne sont pas payées : elles alimentent un solde de repos à récupérer (1 h supplémentaire = 1 h de récup). Cumul depuis le début, tous mois confondus.</p>'+
     '<div class="tw"><table><thead><tr><th>Salarié</th><th class="num">HS 25 %</th><th class="num">HS 50 %</th><th class="num">Récup. accumulée</th><th class="num">Récup. prise</th><th class="num">Solde</th></tr></thead><tbody>'+
     (rowsHtml||'<tr><td colspan="6" class="muted">Aucune donnée.</td></tr>')+
     '<tr><td class="tot" style="background:var(--soft)">Total</td><td class="num tot" style="background:var(--soft)">'+(tot.h25?fmt(tot.h25):"–")+'</td><td class="num tot" style="background:var(--soft)">'+(tot.h50?fmt(tot.h50):"–")+'</td><td class="num tot" style="background:var(--soft)">'+fmt(tot.accrued)+'</td><td class="num tot" style="background:var(--soft)">'+(tot.taken?fmt(tot.taken):"–")+'</td><td class="num tot" style="background:var(--soft)">'+fmt(tot.solde)+'</td></tr>'+
@@ -739,11 +747,11 @@ function renderSynth(){
     '<tr><td class="tot" style="background:var(--soft)">Paniers repas</td><td class="muted" style="background:var(--soft)">'+T.panierCount+' jour'+(T.panierCount>1?"s":"")+'</td><td class="num tot" style="background:var(--soft)"></td><td class="num tot" style="background:var(--soft)">'+eur(T.panierCents)+'</td></tr>'+
     '</tbody></table></div>';
   }
-  h+='<p class="tip">Heures supplémentaires : au-delà de '+esc(String(config.seuil))+' h par semaine, 25 % pour les 8 premières heures puis 50 % — non payées, elles sont converties en repos à récupérer (voir « Récupération d\'heures » ci-dessus). Indemnités de zone et paniers repas : montants fixes par jour selon le barème ci-dessous. Ce calcul est indicatif : les règles de votre convention collective et de votre paie font foi.</p>';
+  h+='<p class="tip">Heures supplémentaires : au-delà de '+esc(String(config.seuil).replace('.',','))+' h par semaine, 25 % pour les 8 premières heures puis 50 % — non payées, elles sont converties en repos à récupérer (voir « Récupération d\'heures » ci-dessus). Indemnités de zone et paniers repas : montants fixes par jour selon le barème ci-dessous. Ce calcul est indicatif : les règles de votre convention collective et de votre paie font foi.</p>';
   box.innerHTML=h;
 }
 $("#s-month").addEventListener("input",renderSynth);
-$("#s-seuil").addEventListener("change",function(e){setConfig({seuil:Math.max(1,parseFloat(e.target.value)||35)})});
+$("#s-seuil").addEventListener("change",function(e){setConfig({seuil:Math.max(1,parseFloat(e.target.value)||39.62)})});
 function renderZrates(){
   var zh=ZONEKM.map(function(km,i){
     var v=(config.zones&&typeof config.zones[i]==="number")?config.zones[i]:ZONE_DEFAULT[i];
@@ -780,14 +788,126 @@ $("#btn-csv").addEventListener("click",async function(){
   try{await downloads.save({filename:"heures-"+mo+".csv",data:csv});}catch(e){}
 });
 
+
+/* ---------- sauvegarde Excel complète, rappel hebdomadaire, restauration ---------- */
+var PFX="hf_";
+function loadXLSX(){
+  if(window.XLSX) return Promise.resolve();
+  return new Promise(function(res,rej){var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=res;s.onerror=function(){rej(new Error("Bibliothèque Excel indisponible (connexion Internet requise)."))};document.head.appendChild(s)});
+}
+function nh(min){return Math.round((min||0)/60*100)/100}
+function ne(c){return Math.round(c||0)/100}
+async function exportAllExcel(){
+  if(!downloads) return false;
+  await loadXLSX();
+  var rows=releves.filter(function(r){return r&&r.prenom}).sort(function(a,b){return (a.prenom||"").localeCompare(b.prenom||"")||(a.du||"").localeCompare(b.du||"")});
+  var wb=XLSX.utils.book_new();
+  function add(name,aoa,widths){var ws=XLSX.utils.aoa_to_sheet(aoa); if(widths) ws["!cols"]=widths.map(function(w){return {wch:w}}); XLSX.utils.book_append_sheet(wb,ws,name);}
+  var det=[["Salarié","Semaine du","Au","Jour","Chantier","Zone","Panier","Chantier (h)","Dépôt (h)","Total (h)","Indemnité zone (€)","Panier (€)","Remarques"]];
+  rows.forEach(function(r){(r.jours||[]).forEach(function(j){
+    if(!(j.zone||j.panier||j.chantierH||j.depot||j.chantier||j.remarques)) return;
+    var n=zoneNum(j.zone);
+    det.push([r.prenom,fmtDate(r.du),fmtDate(r.au),j.jour,j.chantier||"",j.zone||"",j.panier?"oui":"",nh(j.chantierH),nh(j.depot),nh((j.chantierH||0)+(j.depot||0)),n?ne(zoneRateCents(n)):"",j.panier?ne(panierRateCents()):"",j.remarques||""]);
+  })});
+  add("Détail jours",det,[14,12,12,10,22,10,8,12,10,10,16,10,30]);
+  var sem=[["Salarié","Semaine du","Travail (h)","HS 25 % (h)","HS 50 % (h)","Récup acquise (h)","Indemnité zone (€)","Paniers (nb)","Paniers (€)","Total indemnités (€)"]];
+  var by={};
+  rows.forEach(function(r){
+    var w=weekTotals(r);
+    sem.push([r.prenom,fmtDate(r.du),nh(w.work),nh(w.h25),nh(w.h50),nh(w.recup),ne(w.indemCents),w.panierCount,ne(w.panierCents),ne(w.totalCents)]);
+    var k=r.prenom.trim(); if(!k) return;
+    var e=by[k]||(by[k]={name:k,weeks:0,work:0,h25:0,h50:0,accrued:0,indem:0,pc:0,pe:0});
+    e.weeks++; e.work+=w.work; e.h25+=w.h25; e.h50+=w.h50; e.accrued+=w.recup; e.indem+=w.indemCents; e.pc+=w.panierCount; e.pe+=w.panierCents;
+  });
+  add("Semaines",sem,[14,12,12,12,12,16,16,12,12,18]);
+  var taken=recupTakenByName(), report=config.report||{};
+  var cum=[["Salarié","Semaines","Heures saisies (h)","Report initial (h)","Total heures (h)","HS 25 % (h)","HS 50 % (h)","Récup acquise (h)","Récup prise (h)","Solde récup (h)","Indemnités zone (€)","Paniers (nb)","Paniers (€)"]];
+  Object.keys(by).sort().forEach(function(k){var e=by[k], rep=report[slug(e.name)]||0, tk=taken[slug(e.name)]||0;
+    cum.push([e.name,e.weeks,nh(e.work),nh(rep),nh(e.work+rep),nh(e.h25),nh(e.h50),nh(e.accrued),nh(tk),nh(e.accrued-tk),ne(e.indem),e.pc,ne(e.pe)]);});
+  add("Cumul salariés",cum,[14,10,16,16,16,12,12,16,14,14,18,12,12]);
+  var rc=[["Salarié","Date","Durée (h)","Note"]];
+  recups.slice().sort(function(a,b){return (a.date||"").localeCompare(b.date||"")}).forEach(function(r){rc.push([r.salarie||"",fmtDate(r.date),nh(r.minutes),r.note||""])});
+  add("Récup prises",rc,[14,12,12,40]);
+  var par=[["Paramètre","Valeur"],["Seuil hebdomadaire heures sup. (h)",config.seuil],["Panier repas (€/jour)",config.panier]];
+  (config.zones||[]).forEach(function(v,i){par.push(["Zone "+(i+1)+" (€/jour)",v])});
+  add("Paramètres",par,[40,14]);
+  var raw=[["type","id","données (ne pas modifier — sert à la restauration)"]];
+  rows.forEach(function(r){var o=Object.assign({},r); delete o.id; raw.push(["releve",r.id,JSON.stringify(o)])});
+  recups.forEach(function(r){var o=Object.assign({},r); delete o.id; raw.push(["recup",r.id,JSON.stringify(o)])});
+  var cfg=Object.assign({},config); delete cfg.password; delete cfg.lastBackup; raw.push(["config","main",JSON.stringify(cfg)]);
+  add("Données brutes",raw,[10,28,80]);
+  var out=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  var d=new Date(), stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  await downloads.save({filename:"sauvegarde-releves-hydreau-"+stamp+".xlsx",data:new Blob([out],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})});
+  setConfig({lastBackup:new Date().toISOString()});
+  return true;
+}
+async function doBackup(btn){
+  btn.disabled=true;
+  try{ var ok=await exportAllExcel(); if(ok) showToast("Sauvegarde Excel téléchargée ✓"); }
+  catch(e){ if(!(e&&e.code==="declined")) showToast("Sauvegarde impossible : "+((e&&e.message)||(e&&e.code)||"erreur")); }
+  btn.disabled=false;
+}
+function refreshBackupBar(){
+  var b=$("#backupBar"); if(!b) return;
+  var last=config.lastBackup?new Date(config.lastBackup):null;
+  var days=(last&&!isNaN(last))?Math.floor((Date.now()-last.getTime())/864e5):null;
+  var lab=$("#backup-last");
+  if(lab) lab.textContent=days===null?"Aucune sauvegarde Excel faite pour l'instant.":"Dernière sauvegarde Excel : "+fmtDate(last.toISOString().slice(0,10))+(days>0?" (il y a "+days+" jour"+(days>1?"s":"")+")":" (aujourd'hui)");
+  if(!downloads||(days!==null&&days<7)){b.hidden=true;return;}
+  b.hidden=false;
+  $("#backupMsg").textContent=days===null?"Rappel hebdomadaire : aucune sauvegarde Excel n'a encore été faite.":"Rappel hebdomadaire : dernière sauvegarde Excel il y a "+days+" jours.";
+}
+$("#btn-backup").addEventListener("click",function(e){doBackup(e.currentTarget)});
+$("#btn-xlsx").addEventListener("click",function(e){doBackup(e.currentTarget)});
+var restorePending=null;
+$("#restore-file").addEventListener("change",async function(e){
+  var f=e.target.files[0], box=$("#restore-box"); box.innerHTML=""; restorePending=null; if(!f) return;
+  try{
+    await loadXLSX();
+    var wb=XLSX.read(await f.arrayBuffer(),{type:"array"});
+    var ws=wb.Sheets["Données brutes"];
+    if(!ws) throw new Error("Ce fichier n'est pas une sauvegarde de l'application (feuille « Données brutes » absente).");
+    var out={releve:[],recup:[],config:null};
+    XLSX.utils.sheet_to_json(ws,{header:1}).slice(1).forEach(function(r){
+      if(!r||!r[0]||!r[2]) return; var o; try{o=JSON.parse(r[2])}catch(_){return}
+      if(r[0]==="releve"&&o&&o.prenom&&o.du&&r[1]) out.releve.push({id:String(r[1]),data:o});
+      else if(r[0]==="recup"&&o&&r[1]) out.recup.push({id:String(r[1]),data:o});
+      else if(r[0]==="config"&&o) out.config=o;
+    });
+    if(!out.releve.length&&!out.recup.length&&!out.config) throw new Error("Aucune donnée exploitable dans ce fichier.");
+    restorePending=out;
+    box.innerHTML='<div class="note warn">Fichier lu : '+out.releve.length+' relevé(s), '+out.recup.length+' récupération(s)'+(out.config?" et les paramètres":"")+'. La restauration remplace les données portant la même référence et ajoute celles qui manquent ; elle ne supprime rien.</div><div class="actions"><button class="btn primary" id="btn-restore-go" type="button">Restaurer ces données</button></div>';
+  }catch(err){ box.innerHTML='<div class="note bad">'+esc(err.message||String(err))+'</div>'; }
+  e.target.value="";
+});
+$("#restore-box").addEventListener("click",async function(ev){
+  var btn=ev.target.closest&&ev.target.closest("#btn-restore-go"); if(!btn||!restorePending) return;
+  var p=restorePending; restorePending=null; btn.disabled=true; btn.textContent="Restauration…";
+  var ok=0, ko=0;
+  for(var i=0;i<p.releve.length;i++){var x=p.releve[i];
+    try{ if(db) await withTimeout(db.doc(PFX+"releves/"+x.id).set(x.data),20000);
+      releves=releves.filter(function(r){return r.id!==x.id}); releves.push(Object.assign({id:x.id},x.data)); ok++; }catch(e){ko++}
+  }
+  for(var j=0;j<p.recup.length;j++){var y=p.recup[j];
+    try{ if(db) await withTimeout(db.doc(PFX+"recup/"+y.id).set(y.data),20000);
+      recups=recups.filter(function(r){return r.id!==y.id}); recups.push(Object.assign({id:y.id},y.data)); ok++; }catch(e){ko++}
+  }
+  if(p.config){ var c=Object.assign({},p.config); delete c.password; delete c.lastBackup; setConfig(c); }
+  afterData();
+  $("#restore-box").innerHTML='<div class="note '+(ko?"bad":"ok")+'">Restauration terminée : '+ok+' élément(s) restauré(s)'+(ko?", "+ko+" en échec (base inaccessible ?)":"")+(db?"":" — base partagée indisponible : restauration locale seulement")+'.</div>';
+});
+
 /* ---------- données ---------- */
 function afterData(){
+  refreshBackupBar();
   $("#n-list").textContent=releves.length;
   if(!$("#v-list").hidden) renderList();
   if(!$("#v-synth").hidden){renderSalCumul(); renderRecup(); renderChantCumul(); renderSynth();}
   if(current) updateReview();
 }
 function syncConfigUI(){
+  refreshBackupBar();
   $("#s-seuil").value=config.seuil; $("#s-pw").value=config.password||""; renderZrates();
 }
 $("#s-pw").addEventListener("change",function(e){
@@ -829,7 +949,7 @@ async function ensureFirebase(){
 async function boot(){
   if(!current) $("#btn-manual").click();
   downloads={save:async function(o){
-    var blob=new Blob([o.data],{type:"text/csv;charset=utf-8"});
+    var blob=new Blob([o.data],{type:/\.xlsx$/i.test(o.filename)?"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":"text/csv;charset=utf-8"});
     var a=document.createElement("a");
     a.href=URL.createObjectURL(blob); a.download=o.filename;
     document.body.appendChild(a); a.click(); a.remove();
@@ -846,7 +966,7 @@ async function boot(){
       try{ db.settings({experimentalForceLongPolling:true}); }catch(_){}
     }
   }catch(e){ db=null; initErr=(e&&e.message)||String(e); }
-  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 7)":(initErr?"Connexion à la base impossible [v7] ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
+  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 10)":(initErr?"Connexion à la base impossible [v10] ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
   refreshWarn();
   if(db){
     flushPending(); setInterval(flushPending,15000);
@@ -864,13 +984,14 @@ async function boot(){
     },function(){});
     db.doc("hf_config/main").onSnapshot(function(s){
       if(s.exists){
-        config=Object.assign({seuil:35,zones:ZONE_DEFAULT.slice(),panier:PANIER_DEFAULT,report:{},password:"Hydreau"},s.data());
+        config=Object.assign({seuil:39.62,zones:ZONE_DEFAULT.slice(),panier:PANIER_DEFAULT,report:{},password:"Hydreau"},s.data());
         var migrated=false;
         if(config.zones&&config.zones[6]===50){
           config=Object.assign({},config,{zones:config.zones.slice()});
           config.zones[6]=40; migrated=true;
         }
         if(config.password==="hydreau"){ config.password="Hydreau"; migrated=true; }
+        if(!config.seuilMig){ config.seuil=39.62; config.seuilMig=true; migrated=true; }
         if(migrated) db.doc("hf_config/main").set(config).catch(function(){});
         syncConfigUI();afterData();
       }
