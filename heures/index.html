@@ -976,6 +976,10 @@ function buildPdf(title,subtitle,sections,footer){
 }
 
 /* ---------- récapitulatif mensuel (Excel) : par salarié et par chantier ---------- */
+function zoneText(z){
+  var ks=Object.keys(z||{}).map(Number).sort(function(a,b){return a-b});
+  return ks.map(function(n){return z[n]+" × "+(n?"zone "+n:"zone non lue")}).join(", ");
+}
 async function exportMonthRecap(kind){
   var mo=$("#s-month").value, rows=monthRows(mo);
   if(!downloads) return false;
@@ -983,35 +987,44 @@ async function exportMonthRecap(kind){
   var pdf=(kind==="pdf"), wb=null, SH=[];
   if(!pdf){ await loadXLSX(); wb=XLSX.utils.book_new(); }
   function add(name,aoa,widths){ SH.push({name:name,aoa:aoa}); if(pdf) return; var ws=XLSX.utils.aoa_to_sheet(aoa); if(widths) ws["!cols"]=widths.map(function(w){return {wch:w}}); XLSX.utils.book_append_sheet(wb,ws,name);}
-  var sal={}, chant={}, sc={}, depotMin=0, nochant=0;
+  var sal={}, chant={}, sc={}, depotMin=0, nochant=0, zTot={};
   rows.forEach(function(r){
     var w=weekTotals(r), k=r.prenom.trim(); if(!k) return;
-    var e=sal[k]||(sal[k]={name:k,weeks:0,chant:0,depot:0,h25:0,h50:0,recup:0,indem:0,pc:0,pe:0});
+    var e=sal[k]||(sal[k]={name:k,weeks:0,chant:0,depot:0,h25:0,h50:0,recup:0,indem:0,pc:0,pe:0,z:{}});
     e.weeks++; e.chant+=w.t.chantierH; e.depot+=w.t.depot; e.h25+=w.h25; e.h50+=w.h50; e.recup+=w.recup; e.indem+=w.indemCents; e.pc+=w.panierCount; e.pe+=w.panierCents;
     depotMin+=w.t.depot;
     (r.jours||[]).forEach(function(j){
+      var zt0=(j.zone||"").trim(), zn0=zoneNum(zt0);
+      if(zt0){ e.z[zn0]=(e.z[zn0]||0)+1; zTot[zn0]=(zTot[zn0]||0)+1; }
       var c=(j.chantier||"").trim(), has=(j.chantierH||0)>0||c;
       if(!has) return;
       var kk=c?c.toLowerCase():"(sans chantier indiqué)", nm=c||"(sans chantier indiqué)";
-      var x=chant[kk]||(chant[kk]={name:nm,min:0,jours:0,sals:{},zc:0,pe:0});
+      var x=chant[kk]||(chant[kk]={name:nm,min:0,jours:0,sals:{},zc:0,pe:0,z:{}});
       var n=zoneNum(j.zone), zc=n?zoneRateCents(n):0, pe=j.panier?panierRateCents():0;
-      x.min+=(j.chantierH||0); x.jours++; x.sals[k]=1; x.zc+=zc; x.pe+=pe;
+      x.min+=(j.chantierH||0); x.jours++; x.sals[k]=1; x.zc+=zc; x.pe+=pe; if(zt0) x.z[zn0]=(x.z[zn0]||0)+1;
       var key=k+"||"+kk, y=sc[key]||(sc[key]={sal:k,chant:nm,min:0,jours:0,zc:0,pe:0});
       y.min+=(j.chantierH||0); y.jours++; y.zc+=zc; y.pe+=pe;
     });
   });
-  var hdr1=["Salarié","Semaines","Heures totales (h)","dont chantier (h)","dont dépôt (h)","HS 25 % (h)","HS 50 % (h)","Récup acquise (h)","Indemnités zone (€)","Paniers (nb)","Paniers (€)","Total indemnités (€)"];
+  var hdr1=["Salarié","Semaines","Heures totales (h)","dont chantier (h)","dont dépôt (h)","HS 25 % (h)","HS 50 % (h)","Récup acquise (h)","Indemnités zone (€)","Paniers (nb)","Paniers (€)","Total indemnités (€)","Détail des zones"];
   var a1=[["Récapitulatif du mois "+mo+" — par salarié (semaines rattachées au mois de leur premier jour)"],[],hdr1];
   var T={weeks:0,chant:0,depot:0,h25:0,h50:0,recup:0,indem:0,pc:0,pe:0};
   Object.keys(sal).sort().forEach(function(k){var e=sal[k];
-    a1.push([e.name,e.weeks,nh(e.chant+e.depot),nh(e.chant),nh(e.depot),nh(e.h25),nh(e.h50),nh(e.recup),ne(e.indem),e.pc,ne(e.pe),ne(e.indem+e.pe)]);
+    a1.push([e.name,e.weeks,nh(e.chant+e.depot),nh(e.chant),nh(e.depot),nh(e.h25),nh(e.h50),nh(e.recup),ne(e.indem),e.pc,ne(e.pe),ne(e.indem+e.pe),zoneText(e.z)]);
     Object.keys(T).forEach(function(f){T[f]+=e[f]});});
-  a1.push(["TOTAL",T.weeks,nh(T.chant+T.depot),nh(T.chant),nh(T.depot),nh(T.h25),nh(T.h50),nh(T.recup),ne(T.indem),T.pc,ne(T.pe),ne(T.indem+T.pe)]);
-  add("Par salarié",a1,[16,10,16,16,14,12,12,16,18,12,12,18]);
-  var a2=[["Récapitulatif du mois "+mo+" — par chantier"],[],["Chantier","Heures chantier (h)","Jours-hommes","Nb salariés","Salariés","Indemnités zone (€)","Paniers (€)"]];
+  a1.push(["TOTAL",T.weeks,nh(T.chant+T.depot),nh(T.chant),nh(T.depot),nh(T.h25),nh(T.h50),nh(T.recup),ne(T.indem),T.pc,ne(T.pe),ne(T.indem+T.pe),zoneText(zTot)]);
+  add("Par salarié",a1,[16,10,16,16,14,12,12,16,18,12,12,18,44]);
+  var zh=["Salarié"]; for(var zi=1;zi<=8;zi++) zh.push("Zone "+zi); zh.push("Zone non lue","Total jours avec zone","Indemnités zone (€)");
+  var a5=[["Nombre de jours par zone — mois "+mo+", par salarié"],[],zh];
+  function zrow(label,z,cents){var row=[label],tot=0; for(var q=1;q<=8;q++){row.push(z[q]||0); tot+=z[q]||0;} row.push(z[0]||0); tot+=z[0]||0; row.push(tot,ne(cents)); return row;}
+  var zc0=0;
+  Object.keys(sal).sort().forEach(function(k){var e=sal[k], cents=0; Object.keys(e.z).forEach(function(n){cents+=zoneRateCents(+n)*e.z[n]}); zc0+=cents; a5.push(zrow(e.name,e.z,cents));});
+  a5.push(zrow("TOTAL",zTot,zc0));
+  add("Zones par salarié",a5,[16,8,8,8,8,8,8,8,8,12,20,18]);
+  var a2=[["Récapitulatif du mois "+mo+" — par chantier"],[],["Chantier","Heures chantier (h)","Jours-hommes","Nb salariés","Salariés","Indemnités zone (€)","Paniers (€)","Détail des zones"]];
   var tm=0,tj=0,tz=0,tp=0;
   Object.keys(chant).sort(function(a,b){return chant[b].min-chant[a].min}).forEach(function(k){var x=chant[k], names=Object.keys(x.sals).sort();
-    a2.push([x.name,nh(x.min),x.jours,names.length,names.join(", "),ne(x.zc),ne(x.pe)]); tm+=x.min; tj+=x.jours; tz+=x.zc; tp+=x.pe;});
+    a2.push([x.name,nh(x.min),x.jours,names.length,names.join(", "),ne(x.zc),ne(x.pe),zoneText(x.z)]); tm+=x.min; tj+=x.jours; tz+=x.zc; tp+=x.pe;});
   a2.push(["TOTAL chantiers",nh(tm),tj,"","",ne(tz),ne(tp)]);
   a2.push(["Dépôt (hors chantier)",nh(depotMin)]);
   add("Par chantier",a2,[28,18,14,12,40,18,12]);
@@ -1027,7 +1040,7 @@ async function exportMonthRecap(kind){
   add("Détail jours",a4,[14,12,10,22,10,8,12,10,10,30]);
   if(pdf){
     var mname=new Date(mo+"-01T12:00:00").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
-    var secs=[{h:"Par salarié",head:SH[0].aoa[2],rows:SH[0].aoa.slice(3)},{h:"Par chantier",head:SH[1].aoa[2],rows:SH[1].aoa.slice(3)},{h:"Chaque salarié par chantier",head:SH[2].aoa[2],rows:SH[2].aoa.slice(3)},{h:"Détail des jours du mois",head:SH[3].aoa[0],rows:SH[3].aoa.slice(1),newPage:true}];
+    var secs=[{h:"Par salarié",head:SH[0].aoa[2],rows:SH[0].aoa.slice(3)},{h:"Nombre de jours par zone, par salarié",head:SH[1].aoa[2],rows:SH[1].aoa.slice(3)},{h:"Par chantier",head:SH[2].aoa[2],rows:SH[2].aoa.slice(3)},{h:"Chaque salarié par chantier",head:SH[3].aoa[2],rows:SH[3].aoa.slice(3)},{h:"Détail des jours du mois",head:SH[4].aoa[0],rows:SH[4].aoa.slice(1),newPage:true}];
     var d=new Date(), ds=String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
     var bytes=buildPdf("Récapitulatif d'heures — "+mname,"Semaines rattachées au mois de leur premier jour. Heures en décimales (ex : 7,5 = 7 h 30). Montants en euros.",secs,"Hydreau Forage — édité le "+ds);
     await downloads.save({filename:"recap-"+mo+"-hydreau-forage.pdf",data:new Blob([bytes],{type:"application/pdf"})});
@@ -1118,7 +1131,7 @@ async function boot(){
       try{ db.settings({experimentalForceLongPolling:true}); }catch(_){}
     }
   }catch(e){ db=null; initErr=(e&&e.message)||String(e); }
-  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 12)":(initErr?"Connexion à la base impossible [v12] ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
+  $("#dbstate").textContent=db?"Relevés enregistrés et partagés (version 13)":(initErr?"Connexion à la base impossible [v13] ("+initErr+") — les données restent sur cette page uniquement":"Base partagée indisponible : les données restent sur cette page uniquement (configurez Firebase, voir le commentaire en haut du fichier)");
   refreshWarn();
   if(db){
     flushPending(); setInterval(flushPending,15000);
